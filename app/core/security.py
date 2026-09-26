@@ -1,13 +1,9 @@
-from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHash
+from pwdlib import PasswordHash
 
-ph = PasswordHasher()
+ph = PasswordHash.recommended()
 
 def hash_password(password: str) -> str:
     return ph.hash(password)
 
 def verify_password(password: str, hashed: str) -> bool:
-    try:
-        return ph.verify(hashed, password)
-    except (VerifyMismatchError, VerificationError, InvalidHash):
-        return False
+    return ph.verify(password, hashed)
