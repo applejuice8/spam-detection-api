@@ -1,5 +1,5 @@
 from app.db import Base
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, DateTime, func
 
 class User(Base):
@@ -15,7 +15,7 @@ class User(Base):
         nullable=False
     )
     password: Mapped[str] = mapped_column(
-        String(100),
+        String(255),
         nullable=False
     )
     created_at: Mapped[DateTime] = mapped_column(
