@@ -2,6 +2,7 @@ from pwdlib import PasswordHash
 import jwt
 from app.core.config import get_settings
 from datetime import datetime, timezone, timedelta
+import secrets
 
 
 settings = get_settings()
@@ -27,11 +28,16 @@ def create_access_token(user_id: int) -> str:
     payload = {
         'sub': str(user_id),
         'iat': now,
-        'exp': now + timedelta(minutes=settings.token_expires_minutes)
+        'exp': now + timedelta(minutes=settings.access_token_expires_minutes),
+        'type': 'access'
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-# Raises jwt.ExpiredSignatureError / jwt.InvalidTokenError on failure
 def decode_access_token(token: str) -> dict:
     return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+
+
+# Opaque random string, NOT a JWT
+def generate_refresh_token() -> str:
+    return secrets.token_urlsafe(48)

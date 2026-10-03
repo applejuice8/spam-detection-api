@@ -6,7 +6,8 @@ class Settings(BaseSettings):
     database_uri: str
     debug: bool
     jwt_secret: str
-    token_expires_minutes: int
+    access_token_expires_minutes: int
+    refresh_token_expires_days: int
     jwt_algorithm: str
 
     class Config:
