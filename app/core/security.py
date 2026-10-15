@@ -39,5 +39,5 @@ def decode_access_token(token: str) -> dict:
 
 
 # Opaque random string, NOT a JWT
-def generate_refresh_token() -> str:
+def create_refresh_token() -> str:
     return secrets.token_urlsafe(48)
