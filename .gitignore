@@ -11,3 +11,7 @@ wheels/
 .env
 
 .DS_STORE
+
+# ML
+ml/models/
+ml/test_data/
