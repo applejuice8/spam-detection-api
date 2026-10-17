@@ -8,6 +8,14 @@ uv run uvicorn app.main:app --reload
 
 ---
 
+## Run Tests
+
+```bash
+uv run pytest tests
+```
+
+---
+
 ## Alembic Migrations
 
 ```bash
