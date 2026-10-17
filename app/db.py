@@ -2,6 +2,8 @@ from collections.abc import AsyncGenerator
 from app.core.config import get_settings
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncAttrs, AsyncSession
+from fastapi import Depends
+from typing import Annotated
 
 
 settings = get_settings()
@@ -28,3 +30,6 @@ class Base(AsyncAttrs, DeclarativeBase):
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         yield session
+
+
+DBDep = Annotated[AsyncSession, Depends(get_db)]

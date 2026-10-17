@@ -1,11 +1,16 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class SignupIn(BaseModel):
-    username: str
-    password: str = Field(min_length=8)
-    confirm_password: str = Field(min_length=8)
+    username: str = Field(min_length=3, max_length=20)
+    password: str = Field(min_length=8, max_length=128)
+    confirm_password: str
 
+    @model_validator(mode='after')
+    def passwords_match(self):
+        if self.password != self.confirm_password:
+            raise ValueError('Passwords do not match')
+        return self
 
 class LoginIn(BaseModel):
     username: str

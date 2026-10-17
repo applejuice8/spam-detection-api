@@ -1,9 +1,10 @@
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from app.auth.models import User, RefreshToken
-from app.core.security import hash_password, verify_password, DUMMY_HASH
+from app.core.security import hash_password, verify_password, hash_refresh_token, DUMMY_HASH
 from app.auth.schemas import SignupIn, LoginIn
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from app.core.config import get_settings
 
 
@@ -12,10 +13,14 @@ async def create_user(db: AsyncSession, data: SignupIn) -> User:
     if existing:
         raise ValueError('Username already exists')
 
-    hashed = hash_password(data.password)
-    user = User(username=data.username, password=hashed)
+    user = User(username=data.username, password=hash_password(data.password))
     db.add(user)
-    await db.commit()
+
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise ValueError('Username already exists')
     await db.refresh(user)
     return user
 
@@ -34,39 +39,26 @@ async def authenticate_user(db: AsyncSession, data: LoginIn) -> User | None:
 
 
 async def store_refresh_token(db: AsyncSession, user_id: int, raw_token: str) -> None:
-    hashed = hash_password(raw_token)
     refresh_token = RefreshToken(
         user_id=user_id,
-        token=hashed,
-        expires_at=datetime.now(timezone.utc) + get_settings().refresh_token_expire_days
+        token=hash_refresh_token(raw_token),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=get_settings().refresh_token_expire_days)
     )
     db.add(refresh_token)
-    await db.refresh()
+    await db.commit()
 
 
-async def verify_refresh_token(db: AsyncSession, raw_token: str) -> int | None:
-    tokens = await db.scalars(
-        select(RefreshToken).where(
+async def consume_refresh_token(db: AsyncSession, raw_token: str) -> int | None:
+    result = await db.execute(
+        update(RefreshToken)
+        .where(
+            RefreshToken.token == hash_refresh_token(raw_token),
             RefreshToken.revoked == False,
             RefreshToken.expires_at > datetime.now(timezone.utc)
         )
-    )
-    for token in tokens:
-        if verify_password(raw_token, token.token):
-            return token.user_id
-    return None
-
-
-async def revoke_refresh_token(db: AsyncSession, raw_token: str) -> None:
-    user_id = await verify_refresh_token(db, raw_token)
-    if user_id is None:
-        return
-
-    stmt = (
-        update(RefreshToken)
-        .where(RefreshToken.user_id == user_id, RefreshToken.revoked == False)
         .values(revoked=True)
+        .returning(RefreshToken.user_id)
     )
-    await db.execute(stmt)
+    user_id = result.scalar_one_or_none()
     await db.commit()
-
+    return user_id
