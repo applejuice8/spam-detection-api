@@ -22,7 +22,7 @@ async def get_current_user(token: OAuth2Dep, db: DBDep) -> User:
             'Token expired',
             headers={'WWW-Authenticate': 'Bearer'}
         )
-    except jwt.InvalidTokenError:
+    except (jwt.InvalidTokenError, ValueError):
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             'Invalid token',
