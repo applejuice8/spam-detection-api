@@ -16,3 +16,12 @@ dependencies = [
     "pytest-asyncio>=1.4.0",
     "sqlalchemy[asyncio]>=2.1.1",
 ]
+
+[dependency-groups]
+train = [
+    "joblib>=1.6.0",
+    "jupyter>=1.1.1",
+    "kagglehub[pandas-datasets]>=1.0.2",
+    "pandas>=3.0.6",
+    "scikit-learn>=1.9.1",
+]
