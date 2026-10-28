@@ -1,4 +1,5 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, ConfigDict
+from datetime import datetime
 
 
 class SignupIn(BaseModel):
@@ -22,6 +23,7 @@ class UserOut(BaseModel):
     username: str
 
 
+# JWT Token
 class TokenOut(BaseModel):
     access_token: str
     refresh_token: str
@@ -35,3 +37,18 @@ class AccessTokenOut(BaseModel):
 
 class RefreshIn(BaseModel):
     refresh_token: str
+
+
+# API Key
+class APIKeyOut(BaseModel):
+    id: int
+    prefix: str
+    created_at: datetime
+    expires_at: datetime
+    revoked: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class APIKeyCreatedOut(BaseModel):
+    key: str

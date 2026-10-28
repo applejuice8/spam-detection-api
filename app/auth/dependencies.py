@@ -1,17 +1,20 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, HTTPException, status, Security
+from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 import jwt
 from typing import Annotated
 from app.db import DBDep
-from app.core.security import decode_access_token
-from app.auth.models import User
+from app.core.security import decode_access_token, fast_hash
+from app.auth.models import User, APIKey
+from sqlalchemy import select
+from datetime import datetime, timezone
 
 
+# OAuth2
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/login')
-
 OAuth2Dep = Annotated[str, Depends(oauth2_scheme)]
 
 
+# User
 async def get_current_user(token: OAuth2Dep, db: DBDep) -> User:
     try:
         payload = decode_access_token(token)
@@ -40,3 +43,36 @@ async def get_current_user(token: OAuth2Dep, db: DBDep) -> User:
 
 
 UserDep = Annotated[User, Depends(get_current_user)]
+
+
+# API Key
+api_key_header = APIKeyHeader(name='X-API-Key', auto_error=False)
+APIKeyDep = Annotated[str | None, Security(api_key_header)]
+
+
+async def get_api_key_user(api_key: APIKeyDep, db: DBDep) -> User:
+    if not api_key:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            'Missing API Key',
+            headers={'WWW-Authenticate': 'APIKey'}
+        )
+
+    user = await db.scalar(
+        select(User)
+        .join(APIKey, APIKey.user_id == User.id)
+        .where(
+            APIKey.key_hash == fast_hash(api_key),
+            APIKey.revoked == False,
+            APIKey.expires_at > datetime.now(timezone.utc)
+        )
+    )
+    if not user:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            'Invalid or expired API key',
+            headers={'WWW-Authenticate': 'APIKey'}
+        )
+
+
+APIKeyUserDep = Annotated[APIKey, Depends(get_api_key_user)]

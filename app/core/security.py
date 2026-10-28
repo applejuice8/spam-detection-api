@@ -54,5 +54,5 @@ def create_refresh_token() -> str:
 
 # Already random, don't need long salted hash
 # String -> Bytes -> Hex string
-def hash_refresh_token(raw_token: str) -> str:
-    return sha256(raw_token.encode()).hexdigest()
+def fast_hash(raw: str) -> str:
+    return sha256(raw.encode()).hexdigest()
