@@ -6,7 +6,7 @@ from sqlalchemy import select, update
 
 from app.auth.models import RefreshToken, User
 from app.core.config import get_settings
-from app.core.security import hash_refresh_token
+from app.core.security import fast_hash
 
 from .conftest import USER
 
@@ -190,7 +190,7 @@ async def test_refresh_token_is_stored_hashed(tokens, session_maker):
     async with session_maker() as s:
         stored = await s.scalar(select(RefreshToken.token))
     assert stored != tokens['refresh_token']
-    assert stored == hash_refresh_token(tokens['refresh_token'])
+    assert stored == fast_hash(tokens['refresh_token'])
 
 
 # ---------- logout ----------

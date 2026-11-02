@@ -2560,11 +2560,13 @@ dependencies = [
     { name = "alembic" },
     { name = "fastapi", extra = ["standard"] },
     { name = "httpx" },
+    { name = "joblib" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pwdlib", extra = ["argon2"] },
     { name = "pyjwt" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "scikit-learn" },
     { name = "sqlalchemy", extra = ["asyncio"] },
 ]
 
@@ -2586,11 +2588,13 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.20.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.141.1" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "joblib", specifier = ">=1.6.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.6" },
     { name = "pwdlib", extras = ["argon2"], specifier = ">=0.3.1" },
     { name = "pyjwt", specifier = ">=2.15.0" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
+    { name = "scikit-learn", specifier = ">=1.9.1" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.1.1" },
 ]
 

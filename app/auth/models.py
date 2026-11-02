@@ -24,3 +24,18 @@ class RefreshToken(Base):
     token: Mapped[str] = mapped_column(String(255), unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class APIKey(Base):
+    __tablename__ = 'api_key'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey('user.id', ondelete='CASCADE'),
+        index=True
+    )
+    prefix: Mapped[str] = mapped_column(String(8))
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False)

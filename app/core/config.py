@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     access_token_expires_minutes: int
     refresh_token_expire_days: int
     jwt_algorithm: str
+    api_key_expire_days: int = 90
 
 
 # Lazy
