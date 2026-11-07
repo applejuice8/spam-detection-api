@@ -7,16 +7,23 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<!--
+  Demo page for the spam detection API.
+  Flow: log in -> create an API key -> classify text.
+  Styles are in style.css and all behavior is in app.js (elements are found by id).
+-->
 <main>
   <h1>Spam Detection API</h1>
   <p class="sub">Sign in, create an API key, then classify some text.</p>
 
+  <!-- Where the API is running. app.js pings /health when this changes. -->
   <section>
     <h2>API URL</h2>
     <input id="base" value="http://127.0.0.1:8000" aria-label="API base URL">
     <div class="msg" id="health"></div>
   </section>
 
+  <!-- Step 1: sign up or log in. Logging in unlocks step 2. -->
   <section id="auth">
     <h2>1. Account</h2>
     <label for="username">Username</label>
@@ -32,19 +39,23 @@
     <div class="msg" id="authMsg"></div>
   </section>
 
+  <!-- Step 2: create an API key. Locked until login. Creating a key unlocks step 3. -->
   <section id="keySec" class="locked">
     <h2>2. API key</h2>
-    <p class="muted" style="margin:0">Prediction requests are authenticated with an API key (<code>X-API-Key</code> header).</p>
+    <p class="muted intro">Prediction requests are authenticated with an API key (<code>X-API-Key</code> header).</p>
     <div class="row"><button id="createKey">Create API key</button></div>
     <div class="msg" id="keyMsg"></div>
   </section>
 
+  <!-- Step 3: classify text. Locked until an API key exists. -->
   <section id="predictSec" class="locked">
     <h2>3. Predict</h2>
     <label for="text">Text to classify</label>
     <textarea id="text" maxlength="1000">Congratulations! You won a free prize. Click here to claim now.</textarea>
     <div class="row"><button id="predict">Classify</button></div>
     <div class="msg" id="predictMsg"></div>
+
+    <!-- Hidden until the first result. The class "spam" or "ham" is set by app.js. -->
     <div class="result" id="result">
       <div class="label" id="resLabel"></div>
       <div class="bar"><div id="resBar"></div></div>
