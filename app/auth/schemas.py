@@ -50,5 +50,6 @@ class APIKeyOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class APIKeyCreatedOut(BaseModel):
-    key: str
+class APIKeyCreatedOut(APIKeyOut):
+    # Raw key, only returned once at creation
+    api_key: str
