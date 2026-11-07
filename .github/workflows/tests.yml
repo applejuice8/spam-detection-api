@@ -1,0 +1,29 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        # "train" group provides pandas, which tests/test_train.py imports
+        run: uv sync --locked --group train
+
+      - name: Run tests
+        run: uv run pytest tests
