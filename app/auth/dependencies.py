@@ -73,6 +73,7 @@ async def get_api_key_user(api_key: APIKeyDep, db: DBDep) -> User:
             'Invalid or expired API key',
             headers={'WWW-Authenticate': 'APIKey'}
         )
+    return user
 
 
-APIKeyUserDep = Annotated[APIKey, Depends(get_api_key_user)]
+APIKeyUserDep = Annotated[User, Depends(get_api_key_user)]
