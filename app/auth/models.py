@@ -34,7 +34,7 @@ class APIKey(Base):
         ForeignKey('user.id', ondelete='CASCADE'),
         index=True
     )
-    prefix: Mapped[str] = mapped_column(String(8))
+    prefix: Mapped[str] = mapped_column(String(9))
     key_hash: Mapped[str] = mapped_column(String(64), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
