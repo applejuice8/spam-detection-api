@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int
     jwt_algorithm: str
     api_key_expire_days: int = 90
-    allowed_origins: list[str] = ['http://localhost:3000']
+    allowed_origins: list[str] = ['http://localhost:3000', 'http://127.0.0.1:5500']
 
 
 # Lazy
