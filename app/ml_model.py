@@ -1,3 +1,4 @@
+import hashlib
 import json
 import warnings
 from pathlib import Path
@@ -14,6 +15,8 @@ class SpamClassifier:
     def __init__(self, model_dir: Path = MODEL_DIR):
         self.pipe = joblib.load(model_dir / 'spam_detector.pkl')
         self.metadata = json.loads((model_dir / 'metadata.json').read_text())
+        # Changes whenever the model is retrained, so cached predictions from an old model are not reused
+        self.version = hashlib.sha256((model_dir / 'spam_detector.pkl').read_bytes()).hexdigest()[:12]
         self.labels = {int(k): v for k, v in self.metadata['labels'].items()}
         assert self.labels[SPAM_CLASS] == 'spam', 'metadata.json label mapping changed'
 
