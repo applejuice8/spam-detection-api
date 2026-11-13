@@ -1,8 +1,8 @@
-from fastapi import APIRouter, status, HTTPException, Depends
+from fastapi import APIRouter, status, HTTPException, Depends, Body
 from typing import Annotated
 from app.db import DBDep
 from app.auth.dependencies import UserDep
-from app.auth.schemas import SignupIn, LoginIn, UserOut, TokenOut, RefreshIn, APIKeyCreatedOut, APIKeyOut
+from app.auth.schemas import SignupIn, LoginIn, UserOut, TokenOut, RefreshIn, APIKeyCreateIn, APIKeyCreatedOut, APIKeyOut
 from app.auth.service import create_user, authenticate_user, store_refresh_token, consume_refresh_token, create_api_key, list_api_keys, revoke_api_key
 from app.core.security import create_access_token, create_refresh_token
 from fastapi.security import OAuth2PasswordRequestForm
@@ -59,8 +59,9 @@ async def logout(req: RefreshIn, db: DBDep):
 
 # API keys
 @router.post('/api-keys', response_model=APIKeyCreatedOut, status_code=status.HTTP_201_CREATED)
-async def create_key(user: UserDep, db: DBDep):
-    api_key, raw_key = await create_api_key(db, user.id)
+async def create_key(user: UserDep, db: DBDep, req: Annotated[APIKeyCreateIn, Body()] = APIKeyCreateIn()):
+    # Body is optional so existing clients that send none get the 90 day default
+    api_key, raw_key = await create_api_key(db, user.id, req.expires_in_days)
     return APIKeyCreatedOut(
         id=api_key.id,
         prefix=api_key.prefix,

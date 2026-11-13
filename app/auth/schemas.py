@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 from datetime import datetime
+from typing import Literal
 
 
 class SignupIn(BaseModel):
@@ -40,6 +41,11 @@ class RefreshIn(BaseModel):
 
 
 # API Key
+# Lifetime choices for a new key. Free-form values are rejected.
+class APIKeyCreateIn(BaseModel):
+    expires_in_days: Literal[7, 30, 90, 180, 365] = 90
+
+
 class APIKeyOut(BaseModel):
     id: int
     prefix: str
