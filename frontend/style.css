@@ -23,6 +23,11 @@
   box-sizing: border-box;
 }
 
+/* The hidden attribute must win over the display rules in this file */
+[hidden] {
+  display: none !important;
+}
+
 body {
   font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
   color: var(--fg);
@@ -228,10 +233,39 @@ button:disabled {
 }
 
 /* A key shown right after creation stands out so it gets copied */
-.msg.ok code {
+.new-key {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #c4dfc6;
+  border-radius: var(--radius);
   background: var(--ham-soft);
-  color: var(--fg);
+}
+
+.new-key-title {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.new-key-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.new-key-row code {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  background: #fff;
   font-size: 14px;
+}
+
+.new-key-row button {
+  flex: none;
+}
+
+.new-key .muted {
+  margin: 8px 0 0;
 }
 
 
