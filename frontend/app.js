@@ -142,20 +142,32 @@ $('createKey').onclick = e => withBusy(e.target, async () => {
       headers: { Authorization: `Bearer ${state.accessToken}` },
     });
 
-    // The raw key is only returned once, at creation. It is shown for the user to copy, not stored.
+    // The raw key is only returned once, at creation. Show it in its own box for copying. It is not stored.
     const rawKey = created.api_key || created.key;
     if (!rawKey) throw new Error('The response did not include an API key.');
 
-    // Build the message with DOM nodes (not innerHTML) so the key is never parsed as HTML
-    $('keyMsg').textContent = '';
-    $('keyMsg').className = 'msg ok';
-    $('keyMsg').append('Key created (shown once): ', Object.assign(document.createElement('code'), { textContent: rawKey }));
+    // textContent (not innerHTML) so the key is never parsed as HTML
+    $('newKeyValue').textContent = rawKey;
+    $('newKey').hidden = false;
+    say('keyMsg', 'API key created.', 'ok');
 
     await loadKeys();
   } catch (err) {
     say('keyMsg', err.message, 'error');
   }
 });
+
+// Copy the new key to the clipboard. Browsers can block this, so show a message if it fails.
+$('copyKey').onclick = async e => {
+  const btn = e.currentTarget;
+  try {
+    await navigator.clipboard.writeText($('newKeyValue').textContent);
+    btn.textContent = 'Copied';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+  } catch {
+    say('keyMsg', 'Could not copy automatically. Select the key and copy it by hand.', 'error');
+  }
+};
 
 // GET /auth/api-keys (needs the login token). Shows only the prefix, since raw keys are never returned again.
 async function loadKeys() {

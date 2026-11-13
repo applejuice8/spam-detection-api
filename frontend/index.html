@@ -48,6 +48,17 @@
       <button id="listKeys" class="secondary" disabled>Refresh list</button>
     </div>
     <div class="msg" id="keyMsg"></div>
+
+    <!-- Shown only right after a key is created. The server never returns the key again. -->
+    <div class="new-key" id="newKey" hidden>
+      <p class="new-key-title">Your new API key</p>
+      <div class="new-key-row">
+        <code id="newKeyValue"></code>
+        <button id="copyKey" class="secondary">Copy</button>
+      </div>
+      <p class="muted">Copy it now. It won't be shown again.</p>
+    </div>
+
     <ul id="keyList" class="keys"></ul>
     <div class="msg" id="listMsg"></div>
   </section>
