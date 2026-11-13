@@ -1,0 +1,22 @@
+# Keep secrets, local environments, and build junk out of the image.
+# .env holds real secrets, so it must never be copied in. Pass it at runtime instead.
+.env
+.env.*
+!.env.example
+
+.git
+.github
+.venv
+.pytest_cache
+.DS_Store
+**/__pycache__
+**/*.pyc
+
+# Not needed at runtime
+frontend
+tests
+ml/notebooks
+ml/test_data
+ml/train.py
+*.md
+docs
