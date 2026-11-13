@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, HTTPException, Depends, Body
+from fastapi import APIRouter, status, HTTPException, Depends
 from typing import Annotated
 from app.db import DBDep
 from app.auth.dependencies import UserDep
@@ -59,8 +59,7 @@ async def logout(req: RefreshIn, db: DBDep):
 
 # API keys
 @router.post('/api-keys', response_model=APIKeyCreatedOut, status_code=status.HTTP_201_CREATED)
-async def create_key(user: UserDep, db: DBDep, req: Annotated[APIKeyCreateIn, Body()] = APIKeyCreateIn()):
-    # Body is optional so existing clients that send none get the 90 day default
+async def create_key(req: APIKeyCreateIn, user: UserDep, db: DBDep):
     api_key, raw_key = await create_api_key(db, user.id, req.expires_in_days)
     return APIKeyCreatedOut(
         id=api_key.id,
