@@ -149,6 +149,7 @@ $('createKey').onclick = e => withBusy(e.target, async () => {
     // textContent (not innerHTML) so the key is never parsed as HTML
     $('newKeyValue').textContent = rawKey;
     $('newKey').hidden = false;
+    resetCopyButton();
     say('keyMsg', 'API key created.', 'ok');
 
     await loadKeys();
@@ -157,16 +158,44 @@ $('createKey').onclick = e => withBusy(e.target, async () => {
   }
 });
 
-// Copy the new key to the clipboard. Browsers can block this, so show a message if it fails.
-$('copyKey').onclick = async e => {
-  const btn = e.currentTarget;
+// Select the whole key text, so it can be copied by hand if the clipboard API is blocked
+function selectNewKey() {
+  const range = document.createRange();
+  range.selectNodeContents($('newKeyValue'));
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+// Put the copy button back to its normal state
+let copyTimer;
+function resetCopyButton() {
+  clearTimeout(copyTimer);
+  $('copyKey').classList.remove('copied');
+  $('copyLabel').textContent = 'Copy';
+  $('copyStatus').textContent = '';
+}
+
+// Copy the new key to the clipboard. Browsers can block this, so select the key and show a message if it fails.
+$('copyKey').onclick = async () => {
   try {
     await navigator.clipboard.writeText($('newKeyValue').textContent);
-    btn.textContent = 'Copied';
-    setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+    resetCopyButton();
+    $('copyKey').classList.add('copied');
+    $('copyLabel').textContent = 'Copied';
+    $('copyStatus').textContent = 'API key copied to clipboard.';
+    copyTimer = setTimeout(resetCopyButton, 2000);
   } catch {
-    say('keyMsg', 'Could not copy automatically. Select the key and copy it by hand.', 'error');
+    selectNewKey();
+    say('keyMsg', 'Could not copy automatically. The key is selected, so press Ctrl+C (Cmd+C on Mac).', 'error');
   }
+};
+
+// Hide the key panel and clear the key from the page
+$('dismissKey').onclick = () => {
+  $('newKeyValue').textContent = '';
+  $('newKey').hidden = true;
+  resetCopyButton();
 };
 
 // GET /auth/api-keys (needs the login token). Shows only the prefix, since raw keys are never returned again.
