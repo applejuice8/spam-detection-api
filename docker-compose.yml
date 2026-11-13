@@ -1,0 +1,30 @@
+# Runs the API and the demo frontend together.
+#   API:      http://localhost:8000  (docs at /docs)
+#   Frontend: http://localhost:8080
+# The database is the hosted one in DATABASE_URI (.env), so no database service is needed here.
+
+services:
+  api:
+    build: .
+    # Secrets (JWT_SECRET, DATABASE_URI, ...) come from .env, not from the image
+    env_file: .env
+    environment:
+      # CORS: the browser sends requests from the frontend's origin, so the API must allow it
+      ALLOWED_ORIGINS: '["http://localhost:8080","http://127.0.0.1:8080"]'
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  web:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    restart: unless-stopped
