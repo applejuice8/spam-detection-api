@@ -171,9 +171,14 @@ async function loadKeys() {
 
     for (const k of keys) {
       const li = document.createElement('li');
+      const status = keyStatus(k);
       li.append(
         Object.assign(document.createElement('code'), { textContent: `${k.prefix}...` }),
-        ` ${keyStatus(k)}, created ${fmtDate(k.created_at)}, expires ${fmtDate(k.expires_at)}`,
+        Object.assign(document.createElement('span'), { className: `pill ${status}`, textContent: status }),
+        Object.assign(document.createElement('span'), {
+          className: 'key-dates',
+          textContent: `Created ${fmtDate(k.created_at)}, expires ${fmtDate(k.expires_at)}`,
+        }),
       );
 
       // Revoked keys stay in the list but can't be revoked again
@@ -182,7 +187,7 @@ async function loadKeys() {
         btn.className = 'danger small';
         btn.textContent = 'Revoke';
         btn.onclick = ev => withBusy(ev.target, () => revokeKey(k.id, k.prefix));
-        li.append(' ', btn);
+        li.append(btn);
       }
       list.append(li);
     }

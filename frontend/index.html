@@ -25,7 +25,7 @@
 
   <!-- Step 1: sign up or log in. Logging in enables key creation and the key list in step 2. -->
   <section id="auth">
-    <h2>1. Account</h2>
+    <h2><span class="step">1</span> Account</h2>
     <label for="username">Username</label>
     <input id="username" autocomplete="username">
     <label for="password">Password (min 8 characters)</label>
@@ -41,20 +41,20 @@
 
   <!-- Step 2: create API keys and list them (prefix only). Needs a login. -->
   <section id="keySec">
-    <h2>2. API keys</h2>
+    <h2><span class="step">2</span> API keys</h2>
     <p class="muted intro">Log in to create keys or see your list. Keys are shown once when created, so copy them then.</p>
     <div class="row">
       <button id="createKey" disabled>Create API key</button>
       <button id="listKeys" class="secondary" disabled>Refresh list</button>
     </div>
     <div class="msg" id="keyMsg"></div>
-    <ul id="keyList"></ul>
+    <ul id="keyList" class="keys"></ul>
     <div class="msg" id="listMsg"></div>
   </section>
 
   <!-- Step 3: classify text. Needs an API key, pasted here. No login needed. -->
   <section id="predictSec">
-    <h2>3. Predict</h2>
+    <h2><span class="step">3</span> Predict</h2>
     <label for="apiKey">API key</label>
     <input id="apiKey" type="password" autocomplete="off" spellcheck="false" aria-describedby="apiKeyHelp">
     <p class="muted" id="apiKeyHelp">Sent as the <code>X-API-Key</code> header. The server checks it when you classify.</p>
