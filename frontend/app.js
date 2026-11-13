@@ -175,9 +175,33 @@ async function loadKeys() {
         Object.assign(document.createElement('code'), { textContent: `${k.prefix}...` }),
         ` ${keyStatus(k)}, created ${fmtDate(k.created_at)}, expires ${fmtDate(k.expires_at)}`,
       );
+
+      // Revoked keys stay in the list but can't be revoked again
+      if (!k.revoked) {
+        const btn = document.createElement('button');
+        btn.className = 'danger small';
+        btn.textContent = 'Revoke';
+        btn.onclick = ev => withBusy(ev.target, () => revokeKey(k.id, k.prefix));
+        li.append(' ', btn);
+      }
       list.append(li);
     }
     say('listMsg', '');
+  } catch (err) {
+    say('listMsg', err.message, 'error');
+  }
+}
+
+// DELETE /auth/api-keys/{id} (needs the login token). Revoking cannot be undone, so ask first.
+async function revokeKey(id, prefix) {
+  if (!confirm(`Revoke key ${prefix}...? Anything using it will stop working.`)) return;
+
+  try {
+    await api(`/auth/api-keys/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${state.accessToken}` },
+    });
+    await loadKeys();
   } catch (err) {
     say('listMsg', err.message, 'error');
   }
