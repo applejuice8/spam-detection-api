@@ -9,12 +9,12 @@
 <body>
 <!--
   Demo page for the spam detection API.
-  Flow: log in -> create an API key -> classify text.
+  Log in to create or list API keys. Classifying text only needs an API key.
   Styles are in style.css and all behavior is in app.js (elements are found by id).
 -->
 <main>
   <h1>Spam Detection API</h1>
-  <p class="sub">Sign in, create an API key, then classify some text.</p>
+  <p class="sub">Log in to manage API keys, then classify text with a key.</p>
 
   <!-- Where the API is running. app.js pings /health when this changes. -->
   <section>
@@ -23,7 +23,7 @@
     <div class="msg" id="health"></div>
   </section>
 
-  <!-- Step 1: sign up or log in. Logging in unlocks step 2. -->
+  <!-- Step 1: sign up or log in. Logging in enables key creation and the key list in step 2. -->
   <section id="auth">
     <h2>1. Account</h2>
     <label for="username">Username</label>
@@ -39,17 +39,25 @@
     <div class="msg" id="authMsg"></div>
   </section>
 
-  <!-- Step 2: create an API key. Locked until login. Creating a key unlocks step 3. -->
-  <section id="keySec" class="locked">
-    <h2>2. API key</h2>
-    <p class="muted intro">Prediction requests are authenticated with an API key (<code>X-API-Key</code> header).</p>
-    <div class="row"><button id="createKey">Create API key</button></div>
+  <!-- Step 2: create API keys and list them (prefix only). Needs a login. -->
+  <section id="keySec">
+    <h2>2. API keys</h2>
+    <p class="muted intro">Log in to create keys or see your list. Keys are shown once when created, so copy them then.</p>
+    <div class="row">
+      <button id="createKey" disabled>Create API key</button>
+      <button id="listKeys" class="secondary" disabled>Refresh list</button>
+    </div>
     <div class="msg" id="keyMsg"></div>
+    <ul id="keyList"></ul>
+    <div class="msg" id="listMsg"></div>
   </section>
 
-  <!-- Step 3: classify text. Locked until an API key exists. -->
-  <section id="predictSec" class="locked">
+  <!-- Step 3: classify text. Needs an API key, pasted here. No login needed. -->
+  <section id="predictSec">
     <h2>3. Predict</h2>
+    <label for="apiKey">API key</label>
+    <input id="apiKey" type="password" autocomplete="off" spellcheck="false" aria-describedby="apiKeyHelp">
+    <p class="muted" id="apiKeyHelp">Sent as the <code>X-API-Key</code> header. The server checks it when you classify.</p>
     <label for="text">Text to classify</label>
     <textarea id="text" maxlength="1000">Congratulations! You won a free prize. Click here to claim now.</textarea>
     <div class="row"><button id="predict">Classify</button></div>

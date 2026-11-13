@@ -1,5 +1,5 @@
 // Demo client for the spam detection API.
-// Flow: sign up / log in -> create an API key -> call /predict with that key.
+// Flow: log in to create or list API keys. Classifying only needs an API key, so it works without logging in.
 
 
 // ---------- Helpers ----------
@@ -7,10 +7,9 @@
 // Shortcut for document.getElementById
 const $ = id => document.getElementById(id);
 
-// Credentials kept in memory only, so a page refresh logs you out
+// Login token kept in memory only, so a page refresh logs you out
 const state = {
   accessToken: null,   // JWT from /auth/login, used for /auth/* routes
-  apiKey: null,        // Raw key from /auth/api-keys, used for /predict
 };
 
 // API URL from the input box, without any trailing slash
@@ -59,6 +58,15 @@ async function withBusy(button, fn) {
   }
 }
 
+// Short date for the key list
+const fmtDate = s => new Date(s).toLocaleDateString();
+
+// Status text for a key from GET /auth/api-keys
+function keyStatus(k) {
+  if (k.revoked) return 'revoked';
+  return new Date(k.expires_at) > new Date() ? 'active' : 'expired';
+}
+
 
 // ---------- API URL / health check ----------
 
@@ -77,6 +85,12 @@ $('base').addEventListener('change', checkHealth);
 
 
 // ---------- Step 1: account ----------
+
+// Creating and listing keys need a login. Step 3 does not.
+function setLoggedIn(on) {
+  $('createKey').disabled = !on;
+  $('listKeys').disabled = !on;
+}
 
 // POST /auth/signup (JSON body)
 $('signup').onclick = e => withBusy(e.target, async () => {
@@ -109,15 +123,16 @@ $('login').onclick = e => withBusy(e.target, async () => {
     const me = await api('/auth/me', { headers: { Authorization: `Bearer ${state.accessToken}` } });
     say('authMsg', `Logged in as ${me.username}.`, 'ok');
 
-    // Unlock step 2
-    $('keySec').classList.remove('locked');
+    // Enable key creation and the key list, then load the list
+    setLoggedIn(true);
+    await loadKeys();
   } catch (err) {
     say('authMsg', err.message, 'error');
   }
 });
 
 
-// ---------- Step 2: API key ----------
+// ---------- Step 2: API keys ----------
 
 // POST /auth/api-keys (needs the login token)
 $('createKey').onclick = e => withBusy(e.target, async () => {
@@ -127,34 +142,68 @@ $('createKey').onclick = e => withBusy(e.target, async () => {
       headers: { Authorization: `Bearer ${state.accessToken}` },
     });
 
-    // The raw key is only returned once, at creation
-    state.apiKey = created.api_key || created.key;
-    if (!state.apiKey) throw new Error('The response did not include an API key.');
+    // The raw key is only returned once, at creation. It is shown for the user to copy, not stored.
+    const rawKey = created.api_key || created.key;
+    if (!rawKey) throw new Error('The response did not include an API key.');
 
     // Build the message with DOM nodes (not innerHTML) so the key is never parsed as HTML
     $('keyMsg').textContent = '';
     $('keyMsg').className = 'msg ok';
-    $('keyMsg').append('Key created (shown once): ', Object.assign(document.createElement('code'), { textContent: state.apiKey }));
+    $('keyMsg').append('Key created (shown once): ', Object.assign(document.createElement('code'), { textContent: rawKey }));
 
-    // Unlock step 3
-    $('predictSec').classList.remove('locked');
+    await loadKeys();
   } catch (err) {
     say('keyMsg', err.message, 'error');
   }
 });
 
+// GET /auth/api-keys (needs the login token). Shows only the prefix, since raw keys are never returned again.
+async function loadKeys() {
+  const list = $('keyList');
+  list.replaceChildren();
+
+  try {
+    const keys = await api('/auth/api-keys', { headers: { Authorization: `Bearer ${state.accessToken}` } });
+    if (keys.length === 0) {
+      say('listMsg', 'No API keys yet.');
+      return;
+    }
+
+    for (const k of keys) {
+      const li = document.createElement('li');
+      li.append(
+        Object.assign(document.createElement('code'), { textContent: `${k.prefix}...` }),
+        ` ${keyStatus(k)}, created ${fmtDate(k.created_at)}, expires ${fmtDate(k.expires_at)}`,
+      );
+      list.append(li);
+    }
+    say('listMsg', '');
+  } catch (err) {
+    say('listMsg', err.message, 'error');
+  }
+}
+
+$('listKeys').onclick = e => withBusy(e.target, loadKeys);
+
 
 // ---------- Step 3: predict ----------
 
-// POST /predict (authenticated with the X-API-Key header, not the login token)
+// POST /predict (authenticated with the X-API-Key header, not the login token).
+// The key comes from the field, and the server checks it.
 $('predict').onclick = e => withBusy(e.target, async () => {
   // Hide the previous result while the new request runs
   $('result').style.display = 'none';
 
+  const apiKey = $('apiKey').value.trim();
+  if (!apiKey) {
+    say('predictMsg', 'Enter an API key first.', 'error');
+    return;
+  }
+
   try {
     const r = await api('/predict', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-API-Key': state.apiKey },
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
       body: JSON.stringify({ text: $('text').value }),
     });
 
@@ -175,6 +224,9 @@ $('predict').onclick = e => withBusy(e.target, async () => {
 
 
 // ---------- Start ----------
+
+// Key creation and the key list stay off until login
+setLoggedIn(false);
 
 // Check the default API URL on page load
 checkHealth();
