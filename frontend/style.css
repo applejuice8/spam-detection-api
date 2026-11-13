@@ -131,7 +131,8 @@ label {
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
   font: inherit;
   background: #fff;
@@ -142,10 +143,16 @@ textarea {
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(36, 87, 214, 0.15);
+}
+
+select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 textarea {
