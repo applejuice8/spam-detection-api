@@ -89,6 +89,7 @@ $('base').addEventListener('change', checkHealth);
 // Creating and listing keys need a login. Step 3 does not.
 function setLoggedIn(on) {
   $('createKey').disabled = !on;
+  $('keyExpiry').disabled = !on;
   $('listKeys').disabled = !on;
 }
 
@@ -134,12 +135,16 @@ $('login').onclick = e => withBusy(e.target, async () => {
 
 // ---------- Step 2: API keys ----------
 
-// POST /auth/api-keys (needs the login token)
+// POST /auth/api-keys (needs the login token). The expiry comes from the fixed options in the select.
 $('createKey').onclick = e => withBusy(e.target, async () => {
   try {
     const created = await api('/auth/api-keys', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${state.accessToken}` },
+      headers: {
+        Authorization: `Bearer ${state.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ expires_in_days: Number($('keyExpiry').value) }),
     });
 
     // The raw key is only returned once, at creation. Show it in its own box for copying. It is not stored.

@@ -78,7 +78,7 @@ async def tokens(client, registered):
 
 @pytest_asyncio.fixture
 async def api_key(client, tokens):
-    r = await client.post('/auth/api-keys', headers={'Authorization': f'Bearer {tokens["access_token"]}'})
+    r = await client.post('/auth/api-keys', json={}, headers={'Authorization': f'Bearer {tokens["access_token"]}'})
     assert r.status_code == 201
     return r.json()['api_key']
 

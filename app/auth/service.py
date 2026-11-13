@@ -66,13 +66,13 @@ async def consume_refresh_token(db: AsyncSession, raw_token: str) -> int | None:
 
 
 # API Key
-async def create_api_key(db: AsyncSession, user_id: int) -> tuple[APIKey, str]:
+async def create_api_key(db: AsyncSession, user_id: int, expires_in_days: int) -> tuple[APIKey, str]:
     raw_key = 'sk_' + secrets.token_urlsafe(32)
     api_key = APIKey(
         user_id=user_id,
         prefix=raw_key[:9],
         key_hash=fast_hash(raw_key),
-        expires_at=datetime.now(timezone.utc) + timedelta(days=get_settings().refresh_token_expire_days)
+        expires_at=datetime.now(timezone.utc) + timedelta(days=expires_in_days)
     )
     db.add(api_key)
     await db.commit()
