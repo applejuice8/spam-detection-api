@@ -5,13 +5,16 @@ from app.ml_model import SpamClassifier
 from app.auth.router import router as auth_router
 from app.predict.router import router as predict_router
 from app.core.config import get_settings
+from redis.asyncio import Redis
 
 
-# Loads model once
+# Loads redis, model once
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.state.redis = Redis(host='localhost', port=6379, decode_responses=True)
     app.state.spam_classifier = SpamClassifier()
     yield
+    await app.state.redis.aclose()
 
 
 app = FastAPI(lifespan=lifespan)
