@@ -1,9 +1,10 @@
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from app.auth.models import User, RefreshToken, APIKey
 from app.core.security import hash_password, verify_password, fast_hash, DUMMY_HASH
-from app.auth.schemas import SignupIn, LoginIn
+from app.auth.schemas import PASSWORD_MAX_LENGTH, SignupIn, LoginIn
 from datetime import datetime, timezone, timedelta
 from app.core.config import get_settings
 import secrets
@@ -14,7 +15,8 @@ async def create_user(db: AsyncSession, data: SignupIn) -> User:
     if existing:
         raise ValueError('Username already exists')
 
-    user = User(username=data.username, password=hash_password(data.password))
+    # Argon2 is deliberately slow CPU work. In a thread, it can't stall other requests.
+    user = User(username=data.username, password=await run_in_threadpool(hash_password, data.password))
     db.add(user)
 
     try:
@@ -27,14 +29,18 @@ async def create_user(db: AsyncSession, data: SignupIn) -> User:
 
 
 async def authenticate_user(db: AsyncSession, data: LoginIn) -> User | None:
+    # No account can have a longer password (signup caps it), so skip the expensive hash
+    if len(data.password) > PASSWORD_MAX_LENGTH:
+        return None
+
     user = await db.scalar(select(User).where(User.username == data.username))
 
     # Fake hash time if no such user
     if not user:
-        verify_password(data.password, DUMMY_HASH)
+        await run_in_threadpool(verify_password, data.password, DUMMY_HASH)
         return None
 
-    if not verify_password(data.password, user.password):
+    if not await run_in_threadpool(verify_password, data.password, user.password):
         return None
     return user
 

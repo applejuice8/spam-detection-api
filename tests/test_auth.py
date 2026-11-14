@@ -1,3 +1,4 @@
+import threading
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -205,3 +206,31 @@ async def test_logout_revokes_refresh_token(client, tokens):
 async def test_logout_with_unknown_token_still_204(client):
     r = await client.post('/auth/logout', json={'refresh_token': 'nope'})
     assert r.status_code == 204
+
+# ---------- password hashing ----------
+async def test_login_rejects_oversized_password_without_hashing(client, registered, monkeypatch):
+    import app.auth.service as service
+
+    def fail(*args):
+        raise AssertionError('oversized password reached the hash function')
+
+    monkeypatch.setattr(service, 'verify_password', fail)
+    r = await client.post('/auth/login', data={'username': 'alice', 'password': 'x' * 100_000})
+    assert r.status_code == 401
+
+
+async def test_password_hashing_runs_off_the_event_loop(client, monkeypatch):
+    import app.auth.service as service
+
+    real = service.hash_password
+    seen = {}
+
+    def spy(password):
+        seen['thread'] = threading.get_ident()
+        return real(password)
+
+    monkeypatch.setattr(service, 'hash_password', spy)
+    loop_thread = threading.get_ident()
+    r = await client.post('/auth/signup', json={'username': 'bob', 'password': 'password123', 'confirm_password': 'password123'})
+    assert r.status_code == 201
+    assert seen['thread'] != loop_thread
