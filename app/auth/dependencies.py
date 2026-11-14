@@ -5,6 +5,7 @@ from typing import Annotated
 from app.db import DBDep
 from app.core.security import decode_access_token, fast_hash
 from app.auth.models import User, APIKey
+from app.core.metrics import API_KEY_REJECTIONS
 from sqlalchemy import select
 from datetime import datetime, timezone
 
@@ -52,6 +53,7 @@ APIKeyDep = Annotated[str | None, Security(api_key_header)]
 
 async def get_api_key_user(api_key: APIKeyDep, db: DBDep) -> User:
     if not api_key:
+        API_KEY_REJECTIONS.labels(reason='missing').inc()
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             'Missing API Key',
@@ -68,6 +70,7 @@ async def get_api_key_user(api_key: APIKeyDep, db: DBDep) -> User:
         )
     )
     if not user:
+        API_KEY_REJECTIONS.labels(reason='invalid').inc()
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             'Invalid or expired API key',

@@ -1,0 +1,10 @@
+# Adds Prometheus as a data source when Grafana starts, so nothing is clicked by hand.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus          # Dashboards refer to the data source by this uid
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true

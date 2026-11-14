@@ -1,0 +1,10 @@
+# Prometheus pulls metrics from the API on a schedule. Nothing is pushed.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: spam-api
+    metrics_path: /metrics
+    static_configs:
+      # Compose service name and the port inside the network, not the published one
+      - targets: ["api:8000"]
