@@ -6,6 +6,7 @@ from app.auth.router import router as auth_router
 from app.predict.router import router as predict_router
 from app.core.config import get_settings
 from redis.asyncio import Redis
+from prometheus_fastapi_instrumentator import Instrumentator
 
 
 # Loads redis, model once
@@ -32,6 +33,15 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*']
 )
+
+
+# Prometheus
+instrumentator = Instrumentator(
+    should_group_status_codes=True,
+    excluded_handlers=['/metrics'],
+    should_instrument_requests_inprogress=True
+)
+instrumentator.instrument(app).expose(app)
 
 
 app.include_router(auth_router)
