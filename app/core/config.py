@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     access_token_expires_minutes: int
     refresh_token_expire_days: int
     sql_echo: bool = False      # Log every SQL statement with its parameters. Never enable in production.
+    # Prometheus metrics are served on their own port, so they are never reachable through the public API port.
+    # 0 picks a free port (tests). Use 0.0.0.0 as the host inside a container so Prometheus can reach it.
+    metrics_host: str = '127.0.0.1'
+    metrics_port: int = 9100
     redis_url: str = 'redis://localhost:6379/0'
     allowed_origins: list[str] = ['http://localhost:3000', 'http://127.0.0.1:5500']
 

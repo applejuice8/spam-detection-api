@@ -8,6 +8,7 @@ os.environ.update({
     'JWT_SECRET': 'test-secret-test-secret-test-secret-123',
     'ACCESS_TOKEN_EXPIRES_MINUTES': '15',
     'REFRESH_TOKEN_EXPIRE_DAYS': '7',
+    'METRICS_PORT': '0',        # Any free port, so tests never clash with a running dev server
 })
 
 import json
