@@ -16,7 +16,7 @@ async def signup(req: SignupIn, db: DBDep):
     try:
         return await create_user(db, req)
     except ValueError as e:
-        raise HTTPException(status.HTTP_409_CONFLICT, str(e))
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
 
 
 @router.post('/login', response_model=TokenOut)

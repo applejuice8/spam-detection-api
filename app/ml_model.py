@@ -23,7 +23,7 @@ class SpamClassifier:
         # Pickles sensitive to sklearn version
         trained_with = self.metadata['sklearn_version']
         if trained_with != sklearn.__version__:
-            warnings.warn(f'Model trained with sklearn {trained_with}, running {sklearn.__version__}')
+            warnings.warn(f'Model trained with sklearn {trained_with}, running {sklearn.__version__}', stacklevel=2)
 
     def predict(self, texts: list[str]) -> list[dict]:
         probas = self.pipe.predict_proba(texts)[:, SPAM_COLUMN]    # Only keep spam probability

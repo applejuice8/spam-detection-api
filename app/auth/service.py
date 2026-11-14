@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from app.auth.models import User, RefreshToken, APIKey
 from app.core.security import hash_password, verify_password, fast_hash, DUMMY_HASH
-from app.auth.schemas import SignupIn, LoginIn, APIKeyCreatedOut, APIKeyOut
+from app.auth.schemas import SignupIn, LoginIn
 from datetime import datetime, timezone, timedelta
 from app.core.config import get_settings
 import secrets
@@ -21,7 +21,7 @@ async def create_user(db: AsyncSession, data: SignupIn) -> User:
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        raise ValueError('Username already exists')
+        raise ValueError('Username already exists') from None
     await db.refresh(user)
     return user
 
@@ -54,7 +54,7 @@ async def consume_refresh_token(db: AsyncSession, raw_token: str) -> int | None:
         update(RefreshToken)
         .where(
             RefreshToken.token == fast_hash(raw_token),
-            RefreshToken.revoked == False,
+            RefreshToken.revoked.is_(False),
             RefreshToken.expires_at > datetime.now(timezone.utc)
         )
         .values(revoked=True)
@@ -92,7 +92,7 @@ async def list_api_keys(db: AsyncSession, user_id: int) -> list[APIKey]:
 async def revoke_api_key(db: AsyncSession, user_id: int, key_id: int) -> bool:
     result = await db.execute(
         update(APIKey)
-        .where(APIKey.id == key_id, APIKey.user_id == user_id, APIKey.revoked == False)
+        .where(APIKey.id == key_id, APIKey.user_id == user_id, APIKey.revoked.is_(False))
         .values(revoked=True)
         .returning(APIKey.id)
     )

@@ -25,13 +25,13 @@ async def get_current_user(token: OAuth2Dep, db: DBDep) -> User:
             status.HTTP_401_UNAUTHORIZED,
             'Token expired',
             headers={'WWW-Authenticate': 'Bearer'}
-        )
+        ) from None
     except (jwt.InvalidTokenError, ValueError):
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             'Invalid token',
             headers={'WWW-Authenticate': 'Bearer'}
-        )
+        ) from None
 
     user = await db.get(User, user_id)
     if not user:
@@ -65,7 +65,7 @@ async def get_api_key_user(api_key: APIKeyDep, db: DBDep) -> User:
         .join(APIKey, APIKey.user_id == User.id)
         .where(
             APIKey.key_hash == fast_hash(api_key),
-            APIKey.revoked == False,
+            APIKey.revoked.is_(False),
             APIKey.expires_at > datetime.now(timezone.utc)
         )
     )
