@@ -2,8 +2,8 @@ import kagglehub
 from kagglehub import KaggleDatasetAdapter
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics import f1_score
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics import f1_score, precision_score, recall_score
 from sklearn.naive_bayes import BernoulliNB
 import joblib
 from pathlib import Path
@@ -16,15 +16,21 @@ TEST_SIZE = 0.2
 MIN_F1 = 0.90   # Quality gate
 LABELS = {'ham': 0, 'spam': 1}
 
-MODEL_DIR = Path('ml/models')
-TEST_DIR = Path('ml/test_data')
+# Anchored to this file, so training works from any working directory
+ML_DIR = Path(__file__).resolve().parent
+MODEL_DIR = ML_DIR / 'models'
+TEST_DIR = ML_DIR / 'test_data'
+
+# Pinned, so retraining sees the same data. Bump deliberately and compare scores.
+DATASET = 'uciml/sms-spam-collection-dataset'
+DATASET_VERSION = 1
 
 
 def load_dataset():
     # https://www.kaggle.com/datasets/uciml/sms-spam-collection-dataset?select=spam.csv
     df = kagglehub.dataset_load(
         KaggleDatasetAdapter.PANDAS,
-        'uciml/sms-spam-collection-dataset',
+        f'{DATASET}/versions/{DATASET_VERSION}',
         'spam.csv',
         pandas_kwargs={'encoding': 'latin-1'}
     )
@@ -41,18 +47,17 @@ def split_X_y_train_test(df):
     )
 
 
-# Param selected from notebook best F1 score
+# Params selected from notebook best CV F1 score (ml/notebooks/01_experiments.ipynb).
+# The notebook picked TfidfVectorizer, but BernoulliNB(binarize=0.0) turns every non-zero weight into 1,
+# so the TF-IDF weighting had no effect. CountVectorizer(binary=True) gives the same features and the
+# same predictions (checked on the full test set), and doesn't suggest weights matter.
 def setup_pipe():
-    vectorizer = TfidfVectorizer(
+    vectorizer = CountVectorizer(
         max_df=0.95,
         min_df=0.001,
         ngram_range=(1, 1),
         stop_words=None,
-        binary=False,
-        sublinear_tf=True,
-        norm=None,
-        use_idf=True,
-        smooth_idf=False,
+        binary=True,
         lowercase=True,
         strip_accents=None,
         max_features=None,
@@ -67,7 +72,7 @@ def setup_pipe():
     return Pipeline([('vec', vectorizer), ('model', model)])
 
 
-def save_artifacts(pipe, f1, X_train, X_test, y_test):
+def save_artifacts(pipe, scores, X_train, X_test, y_test):
     # Create dir
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     TEST_DIR.mkdir(parents=True, exist_ok=True)
@@ -77,7 +82,8 @@ def save_artifacts(pipe, f1, X_train, X_test, y_test):
 
     # Save metadata
     metadata = {
-        'f1': f1,
+        **scores,
+        'dataset': f'{DATASET}/versions/{DATASET_VERSION}',
         'labels': {str(v): k for k, v in LABELS.items()},   # {'0': 'ham', '1': 'spam'}
         'n_train': len(X_train),
         'sklearn_version': sklearn.__version__,
@@ -99,13 +105,20 @@ def train():
     pipe = setup_pipe().fit(X_train, y_train)
 
     # Gate against low F1 score
-    f1 = f1_score(y_test, pipe.predict(X_test))
-    print(f'Test F1: {f1:.4f}')
-    if f1 < MIN_F1:
-        raise SystemExit(f'Quality gate failed: F1 {f1:.3f} < {MIN_F1}')
+    pred = pipe.predict(X_test)
+    scores = {
+        'f1': f1_score(y_test, pred),
+        # Precision: of the messages flagged as spam, how many were. Low means real messages get blocked.
+        'precision': precision_score(y_test, pred),
+        # Recall: of the real spam, how much was caught
+        'recall': recall_score(y_test, pred),
+    }
+    print(f"Test F1: {scores['f1']:.4f}  precision: {scores['precision']:.4f}  recall: {scores['recall']:.4f}")
+    if scores['f1'] < MIN_F1:
+        raise SystemExit(f"Quality gate failed: F1 {scores['f1']:.3f} < {MIN_F1}")
 
     # Save
-    save_artifacts(pipe, f1, X_train, X_test, y_test)
+    save_artifacts(pipe, scores, X_train, X_test, y_test)
 
 
 if __name__ == '__main__':
