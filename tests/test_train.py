@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import joblib
 import pandas as pd
@@ -122,3 +123,23 @@ def test_metadata_has_label_mapping():
     assert meta['labels'] == {'0': 'ham', '1': 'spam'}
     assert 'f1' in meta
     assert 'sklearn_version' in meta
+    assert {'precision', 'recall', 'dataset'} <= set(meta)
+
+def test_train_records_precision_recall_and_dataset(tiny_df, tmp_artifacts, monkeypatch):
+    monkeypatch.setattr(train_module, 'load_dataset', lambda: tiny_df)
+    train()
+
+    meta = json.loads((tmp_artifacts / 'models' / 'metadata.json').read_text())
+    assert 0 <= meta['precision'] <= 1
+    assert 0 <= meta['recall'] <= 1
+    assert meta['dataset'].endswith(f'/versions/{train_module.DATASET_VERSION}')
+
+
+def test_output_paths_do_not_depend_on_working_directory():
+    assert train_module.ML_DIR.is_absolute()
+    assert train_module.ML_DIR == Path(__file__).resolve().parent.parent / 'ml'
+
+
+def test_pipeline_uses_binary_counts():
+    # BernoulliNB binarizes its input, so TF-IDF weights would have no effect
+    assert setup_pipe().named_steps['vec'].binary is True
