@@ -28,12 +28,14 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "ruff>=0.8.0",
 ]
+# Needed to run ml/train.py (also installed by the Docker image build and CI)
 train = [
-    "joblib>=1.6.0",
-    "jupyter>=1.1.1",
     "kagglehub[pandas-datasets]>=1.0.2",
     "pandas>=3.0.6",
-    "scikit-learn>=1.9.1",
+]
+# Only for running the experiments notebook: uv sync --group train --group notebook
+notebook = [
+    "jupyter>=1.1.1",
 ]
 
 [tool.ruff]

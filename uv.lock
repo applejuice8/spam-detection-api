@@ -2626,12 +2626,12 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "ruff" },
 ]
-train = [
-    { name = "joblib" },
+notebook = [
     { name = "jupyter" },
+]
+train = [
     { name = "kagglehub", extra = ["pandas-datasets"] },
     { name = "pandas" },
-    { name = "scikit-learn" },
 ]
 
 [package.metadata]
@@ -2659,12 +2659,10 @@ dev = [
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
     { name = "ruff", specifier = ">=0.8.0" },
 ]
+notebook = [{ name = "jupyter", specifier = ">=1.1.1" }]
 train = [
-    { name = "joblib", specifier = ">=1.6.0" },
-    { name = "jupyter", specifier = ">=1.1.1" },
     { name = "kagglehub", extras = ["pandas-datasets"], specifier = ">=1.0.2" },
     { name = "pandas", specifier = ">=3.0.6" },
-    { name = "scikit-learn", specifier = ">=1.9.1" },
 ]
 
 [[package]]
