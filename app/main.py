@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 from app.ml_model import SpamClassifier
 from app.auth.router import router as auth_router
+from app.auth.maintenance import purge_loop
+from app.db import async_session
 from app.predict.router import router as predict_router
 from app.core.config import get_settings
 from app.core.metrics import MODEL_F1
@@ -10,7 +13,7 @@ from redis.asyncio import Redis
 from prometheus_fastapi_instrumentator import Instrumentator
 
 
-# Loads redis, model once
+# Loads redis, model once. Also starts the periodic cleanup of expired tokens.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Short timeouts so a down Redis slows a request by at most about a second, then predict falls back to the model
@@ -22,7 +25,11 @@ async def lifespan(app: FastAPI):
     )
     app.state.spam_classifier = SpamClassifier()
     MODEL_F1.labels(model_version=app.state.spam_classifier.version).set(app.state.spam_classifier.metadata['f1'])
+    purge_task = asyncio.create_task(purge_loop(async_session))
     yield
+    purge_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await purge_task
     await app.state.redis.aclose()
 
 
