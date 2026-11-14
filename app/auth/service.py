@@ -1,5 +1,5 @@
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from app.auth.models import User, RefreshToken, APIKey
@@ -11,7 +11,7 @@ import secrets
 
 
 async def create_user(db: AsyncSession, data: SignupIn) -> User:
-    existing = await db.scalar(select(User).where(User.username == data.username))
+    existing = await db.scalar(select(User).where(func.lower(User.username) == data.username.lower()))
     if existing:
         raise ValueError('Username already exists')
 
@@ -33,7 +33,7 @@ async def authenticate_user(db: AsyncSession, data: LoginIn) -> User | None:
     if len(data.password) > PASSWORD_MAX_LENGTH:
         return None
 
-    user = await db.scalar(select(User).where(User.username == data.username))
+    user = await db.scalar(select(User).where(func.lower(User.username) == data.username.lower()))
 
     # Fake hash time if no such user
     if not user:

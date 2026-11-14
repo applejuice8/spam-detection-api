@@ -7,7 +7,8 @@ PASSWORD_MAX_LENGTH = 128
 
 
 class SignupIn(BaseModel):
-    username: str = Field(min_length=3, max_length=20)
+    # Letters, digits and . _ - only: no spaces or look-alike characters
+    username: str = Field(min_length=3, max_length=20, pattern=r'^[A-Za-z0-9._-]+$')
     password: str = Field(min_length=8, max_length=PASSWORD_MAX_LENGTH)
     confirm_password: str
 

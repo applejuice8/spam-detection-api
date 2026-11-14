@@ -234,3 +234,20 @@ async def test_password_hashing_runs_off_the_event_loop(client, monkeypatch):
     r = await client.post('/auth/signup', json={'username': 'bob', 'password': 'password123', 'confirm_password': 'password123'})
     assert r.status_code == 201
     assert seen['thread'] != loop_thread
+
+
+# ---------- usernames ----------
+async def test_signup_rejects_duplicate_username_ignoring_case(client, registered):
+    r = await client.post('/auth/signup', json={**USER, 'username': 'ALICE'})
+    assert r.status_code == 409
+
+
+@pytest.mark.parametrize('username', ['has space', 'tab\there', 'semi;colon', 'émile', '<b>x</b>'])
+async def test_signup_rejects_unsafe_username_characters(client, username):
+    r = await client.post('/auth/signup', json={**USER, 'username': username})
+    assert r.status_code == 422
+
+
+async def test_login_ignores_username_case(client, registered):
+    r = await client.post('/auth/login', data={'username': 'ALICE', 'password': registered['password']})
+    assert r.status_code == 200
