@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 import jwt
 from typing import Annotated
 from app.db import DBDep
-from app.core.security import decode_access_token, fast_hash
+from app.core.security import as_utc, decode_access_token, fast_hash
 from app.auth.models import User, APIKey
 from app.core.metrics import API_KEY_REJECTIONS
 from sqlalchemy import select
@@ -38,6 +38,15 @@ async def get_current_user(token: OAuth2Dep, db: DBDep) -> User:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             'User not found',
+            headers={'WWW-Authenticate': 'Bearer'}
+        )
+
+    # "Log out everywhere" invalidates access tokens issued at or before that moment.
+    # iat has one-second precision, so a token issued in the same second counts as before.
+    if user.tokens_valid_after and payload['iat'] <= int(as_utc(user.tokens_valid_after).timestamp()):
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            'Token revoked',
             headers={'WWW-Authenticate': 'Bearer'}
         )
     return user

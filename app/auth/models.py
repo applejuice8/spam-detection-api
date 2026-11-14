@@ -11,6 +11,8 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     password: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Access tokens issued at or before this moment are rejected (set by "log out everywhere")
+    tokens_valid_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 # Usernames are unique ignoring case, so "Alice" and "alice" can't both exist
@@ -26,6 +28,9 @@ class RefreshToken(Base):
         index=True
     )
     token: Mapped[str] = mapped_column(String(255), unique=True)
+    # One login = one family. Refreshing keeps the family, so replaying an old token can revoke it all.
+    # Null for tokens issued before families existed.
+    family_id: Mapped[str | None] = mapped_column(String(36), index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
 

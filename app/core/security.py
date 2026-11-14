@@ -19,6 +19,11 @@ ph = PasswordHash.recommended()
 DUMMY_HASH = ph.hash('you-are-stupid')
 
 
+# SQLite returns naive datetimes, Postgres returns aware ones. Stored times are always UTC.
+def as_utc(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
 def hash_password(password: str) -> str:
     return ph.hash(password)
 
@@ -43,7 +48,7 @@ def decode_access_token(token: str) -> dict:
         token,
         settings.jwt_secret,
         algorithms=[JWT_ALGORITHM],
-        options={'require': ['exp', 'sub']}
+        options={'require': ['exp', 'sub', 'iat']}
     )
     if payload.get('type') != 'access':
         raise jwt.InvalidTokenError('Wrong token type')
