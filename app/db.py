@@ -12,7 +12,7 @@ settings = get_settings()
 engine = create_async_engine(
     settings.database_uri,
     pool_pre_ping=True,
-    echo=settings.debug
+    echo=settings.sql_echo
 )
 
 

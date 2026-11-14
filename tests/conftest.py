@@ -5,9 +5,7 @@ import os
 # so this also guarantees tests can never touch your dev database.
 os.environ.update({
     'DATABASE_URI': 'sqlite+aiosqlite://',
-    'DEBUG': 'false',
     'JWT_SECRET': 'test-secret-test-secret-test-secret-123',
-    'JWT_ALGORITHM': 'HS256',
     'ACCESS_TOKEN_EXPIRES_MINUTES': '15',
     'REFRESH_TOKEN_EXPIRE_DAYS': '7',
 })

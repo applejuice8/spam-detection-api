@@ -6,7 +6,7 @@ from sqlalchemy import select, update
 
 from app.auth.models import RefreshToken, User
 from app.core.config import get_settings
-from app.core.security import fast_hash
+from app.core.security import JWT_ALGORITHM, fast_hash
 
 from .conftest import USER
 
@@ -20,7 +20,7 @@ def make_jwt(secret=None, **overrides):
     }
     payload = {k: v for k, v in payload.items() if v is not None}
     s = get_settings()
-    return jwt.encode(payload, secret or s.jwt_secret, algorithm=s.jwt_algorithm)
+    return jwt.encode(payload, secret or s.jwt_secret, algorithm=JWT_ALGORITHM)
 
 
 def bearer(token):
