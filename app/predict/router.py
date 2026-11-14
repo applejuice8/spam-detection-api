@@ -2,9 +2,10 @@ import hashlib
 import json
 from fastapi import APIRouter
 from fastapi.concurrency import run_in_threadpool
-from redis.exceptions import RedisError
+from pydantic import ValidationError
+from app.core.cache import CacheDep, CacheUnavailable
 from app.predict.schemas import PredictRequest, PredictResponse
-from app.predict.dependencies import RedisDep, SpamClassifierDep
+from app.predict.dependencies import SpamClassifierDep
 from app.auth.dependencies import APIKeyUserDep
 from app.core.metrics import MODEL_INFERENCE_SECONDS, PREDICTION_CACHE, PREDICTIONS
 
@@ -19,21 +20,35 @@ def cache_key(text: str, model_version: str) -> str:
     return f'spam:{model_version}:{hashlib.sha256(text.encode()).hexdigest()}'
 
 
+# The cache is optional: if Redis is down, or an entry is unreadable, treat it as a miss
+async def read_cache(cache: CacheDep, key: str) -> dict | None:
+    try:
+        cached = await cache.get(key)
+    except CacheUnavailable:
+        PREDICTION_CACHE.labels(result='error').inc()
+        return None
+
+    if cached is None:
+        PREDICTION_CACHE.labels(result='miss').inc()
+        return None
+
+    try:
+        result = json.loads(cached)
+        PredictResponse(**result, model_f1=0.0, from_cache=True)       # Validates the shape
+    except (ValueError, TypeError, ValidationError):
+        PREDICTION_CACHE.labels(result='error').inc()
+        return None
+
+    PREDICTION_CACHE.labels(result='hit').inc()
+    return result
+
+
 @router.post('', response_model=PredictResponse)
-async def predict(req: PredictRequest, model: SpamClassifierDep, user: APIKeyUserDep, r: RedisDep):
+async def predict(req: PredictRequest, model: SpamClassifierDep, user: APIKeyUserDep, cache: CacheDep):
     key = cache_key(req.text, model.version)
 
-    # The cache is optional: if Redis is down, carry on without it
-    try:
-        cached = await r.get(key)
-    except RedisError:
-        cached = None
-        PREDICTION_CACHE.labels(result='error').inc()
-    else:
-        PREDICTION_CACHE.labels(result='hit' if cached is not None else 'miss').inc()
-
-    if cached is not None:
-        result = json.loads(cached)
+    result = await read_cache(cache, key)
+    if result is not None:
         PREDICTIONS.labels(label=result['label']).inc()
         return PredictResponse(**result, model_f1=model.metadata['f1'], from_cache=True)
 
@@ -42,9 +57,6 @@ async def predict(req: PredictRequest, model: SpamClassifierDep, user: APIKeyUse
         result = (await run_in_threadpool(model.predict, [req.text]))[0]
     PREDICTIONS.labels(label=result['label']).inc()
 
-    try:
-        await r.set(key, json.dumps(result), ex=CACHE_TTL_SECONDS)
-    except RedisError:
-        pass
+    await cache.set(key, json.dumps(result), ex=CACHE_TTL_SECONDS)
 
     return PredictResponse(**result, model_f1=model.metadata['f1'], from_cache=False)
