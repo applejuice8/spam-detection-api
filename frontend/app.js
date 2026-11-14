@@ -288,6 +288,7 @@ $('predict').onclick = e => withBusy(e.target, async () => {
     // The class (spam or ham) sets the label color
     $('result').className = 'result ' + (isSpam ? 'spam' : 'ham');
     $('resLabel').textContent = r.label;
+    $('resCache').hidden = !r.from_cache;
     $('resBar').style.width = pct + '%';
     $('resDetail').textContent = `Spam probability: ${pct}%  |  Model F1: ${r.model_f1.toFixed(3)}`;
     $('result').style.display = 'block';
