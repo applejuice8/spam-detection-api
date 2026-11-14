@@ -65,7 +65,7 @@ services:
       - api
     restart: unless-stopped
 
-  # Dashboards. The data source is loaded from ./monitoring/grafana/provisioning.
+  # Dashboards. The data source and dashboards are loaded from ./monitoring/grafana.
   # Published on localhost only: http://localhost:3000 (login: admin / GRAFANA_ADMIN_PASSWORD)
   grafana:
     image: grafana/grafana:13.3.1
@@ -76,6 +76,7 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
