@@ -3,6 +3,7 @@ import json
 from fastapi import APIRouter
 from fastapi.concurrency import run_in_threadpool
 from pydantic import ValidationError
+from app.core import rate_limit
 from app.core.cache import CacheDep, CacheUnavailable
 from app.predict.schemas import PredictRequest, PredictResponse
 from app.predict.dependencies import SpamClassifierDep
@@ -10,7 +11,11 @@ from app.auth.dependencies import APIKeyUserDep
 from app.core.metrics import MODEL_INFERENCE_SECONDS, PREDICTION_CACHE, PREDICTIONS
 
 
-router = APIRouter(prefix='/predict', tags=['predict'])
+router = APIRouter(
+    prefix='/predict', tags=['predict'],
+    # Listed first so it runs before the API key lookup
+    dependencies=[rate_limit.limit_by_ip('predict_ip')]
+)
 
 CACHE_TTL_SECONDS = 3600
 
@@ -45,6 +50,8 @@ async def read_cache(cache: CacheDep, key: str) -> dict | None:
 
 @router.post('', response_model=PredictResponse)
 async def predict(req: PredictRequest, model: SpamClassifierDep, user: APIKeyUserDep, cache: CacheDep):
+    await rate_limit.enforce(cache, 'predict_user', str(user.id))
+
     key = cache_key(req.text, model.version)
 
     result = await read_cache(cache, key)

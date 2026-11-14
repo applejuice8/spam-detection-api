@@ -8,13 +8,17 @@ from app.auth.service import (
     revoke_all_sessions, create_api_key, list_api_keys, revoke_api_key
 )
 from app.core.security import create_access_token, create_refresh_token
+from app.core import rate_limit
 from fastapi.security import OAuth2PasswordRequestForm
 
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 
 
-@router.post('/signup', response_model=UserOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    '/signup', response_model=UserOut, status_code=status.HTTP_201_CREATED,
+    dependencies=[rate_limit.limit_by_ip('signup')]
+)
 async def signup(req: SignupIn, db: DBDep):
     try:
         return await create_user(db, req)
@@ -22,7 +26,7 @@ async def signup(req: SignupIn, db: DBDep):
         raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
 
 
-@router.post('/login', response_model=TokenOut)
+@router.post('/login', response_model=TokenOut, dependencies=[rate_limit.limit_by_ip('login')])
 async def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DBDep):
     user = await authenticate_user(db, LoginIn(username=form.username, password=form.password))
     if not user:
@@ -39,7 +43,7 @@ async def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DBDep
     return TokenOut(access_token=access, refresh_token=refresh)
 
 
-@router.post('/refresh', response_model=TokenOut)
+@router.post('/refresh', response_model=TokenOut, dependencies=[rate_limit.limit_by_ip('refresh')])
 async def refresh(req: RefreshIn, db: DBDep):
     # Refresh token only works once
     new_refresh = create_refresh_token()

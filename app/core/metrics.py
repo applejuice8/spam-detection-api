@@ -32,6 +32,13 @@ MODEL_F1 = Gauge(
     ['model_version']
 )
 
+# scope: login, signup, refresh, predict_ip, predict_user
+RATE_LIMITED = Counter(
+    'rate_limited_total',
+    'Requests rejected with 429, by limit',
+    ['scope']
+)
+
 # reason: missing (no X-API-Key header), invalid (unknown, revoked or expired)
 API_KEY_REJECTIONS = Counter(
     'api_key_rejections_total',

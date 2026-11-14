@@ -83,19 +83,18 @@ async def test_redis_is_retried_after_the_cooldown(client, spam_classifier, fake
     app.state.cache._clock = lambda: now[0]
     fake_redis.broken = True
     await client.post('/predict', json={'text': 'free prize'}, headers=headers)
-    assert fake_redis.calls == 1
+    calls_after_failure = fake_redis.calls
 
     fake_redis.broken = False
     now[0] += 5                     # Still cooling down
     await client.post('/predict', json={'text': 'free prize'}, headers=headers)
-    assert fake_redis.calls == 1
+    assert fake_redis.calls == calls_after_failure
 
     now[0] += 60                    # Cooldown over, Redis is used again
-    r = await client.post('/predict', json={'text': 'free prize'}, headers=headers)
-    assert fake_redis.calls == 3    # get + set
-    assert r.json()['from_cache'] is False
-    r = await client.post('/predict', json={'text': 'free prize'}, headers=headers)
-    assert r.json()['from_cache'] is True
+    first = await client.post('/predict', json={'text': 'free prize'}, headers=headers)
+    second = await client.post('/predict', json={'text': 'free prize'}, headers=headers)
+    assert first.json()['from_cache'] is False
+    assert second.json()['from_cache'] is True
 
 
 @pytest.mark.parametrize('garbage', ['not json', '{"label": "spam"}', '[]', '"spam"', '{"label": 1, "spam_probability": "x"}'])
