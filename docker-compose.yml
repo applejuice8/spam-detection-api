@@ -1,9 +1,21 @@
-# Runs the API and the demo frontend together.
+# Runs the API, Redis and the demo frontend together.
 #   API:      http://localhost:8000  (docs at /docs)
 #   Frontend: http://localhost:8080
 # The database is the hosted one in DATABASE_URI (.env), so no database service is needed here.
 
 services:
+  # Prediction cache only: no persistence, capped memory, evicts the least recently used keys.
+  # No ports are published, so only other containers on the compose network can reach it.
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
   api:
     build: .
     # Secrets (JWT_SECRET, DATABASE_URI, ...) come from .env, not from the image
@@ -11,6 +23,11 @@ services:
     environment:
       # CORS: the browser sends requests from the frontend's origin, so the API must allow it
       ALLOWED_ORIGINS: '["http://localhost:8080","http://127.0.0.1:8080"]'
+      # Inside the container, localhost is the container itself, so use the service name
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
     ports:
       - "8000:8000"
     healthcheck:

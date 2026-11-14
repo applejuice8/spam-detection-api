@@ -98,7 +98,11 @@
 
     <!-- Hidden until the first result. The class "spam" or "ham" is set by app.js. -->
     <div class="result" id="result">
-      <div class="label" id="resLabel"></div>
+      <div class="result-head">
+        <div class="label" id="resLabel"></div>
+        <!-- Shown only when the server answered from its Redis cache -->
+        <span class="cache-badge" id="resCache" title="This result was served from the server's cache, not computed again" hidden>From cache</span>
+      </div>
       <div class="bar"><div id="resBar"></div></div>
       <div class="muted" id="resDetail"></div>
     </div>

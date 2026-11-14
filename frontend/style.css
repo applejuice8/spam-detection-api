@@ -476,6 +476,24 @@ button:disabled {
   text-transform: uppercase;
 }
 
+.result-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Marks a result the server answered from its cache */
+.cache-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid #c9d6f5;
+}
+
 .result.spam .label {
   color: var(--spam);
 }

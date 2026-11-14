@@ -37,3 +37,30 @@ async def test_predict_requires_api_key(client, spam_classifier):
 async def test_predict_rejects_invalid_api_key(client, spam_classifier):
     r = await client.post('/predict', json={'text': 'hello'}, headers={'X-API-Key': 'sk_invalid'})
     assert r.status_code == 401
+
+
+async def test_predict_second_call_comes_from_cache(client, spam_classifier, headers):
+    body = {'text': 'free prize winner claim now'}
+    first = await client.post('/predict', json=body, headers=headers)
+    second = await client.post('/predict', json=body, headers=headers)
+
+    assert first.json()['from_cache'] is False
+    assert second.json()['from_cache'] is True
+    assert second.json()['label'] == first.json()['label']
+    assert second.json()['spam_probability'] == first.json()['spam_probability']
+    assert second.json()['model_f1'] == spam_classifier.metadata['f1']
+
+
+async def test_predict_cache_key_does_not_contain_raw_text(client, spam_classifier, fake_redis, headers):
+    await client.post('/predict', json={'text': 'free prize winner claim now'}, headers=headers)
+
+    assert len(fake_redis.data) == 1
+    assert 'prize' not in next(iter(fake_redis.data))
+
+
+async def test_predict_still_works_when_redis_is_down(client, spam_classifier, broken_redis, headers):
+    r = await client.post('/predict', json={'text': 'free prize winner claim now'}, headers=headers)
+
+    assert r.status_code == 200
+    assert r.json()['label'] == 'spam'
+    assert r.json()['from_cache'] is False

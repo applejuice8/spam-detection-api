@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import BernoulliNB
 from sklearn.pipeline import Pipeline
+from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy.pool import StaticPool
 
 import app.models_registry      # Makes sure models registered on Base
@@ -104,8 +105,45 @@ def fake_model_dir(tmp_path_factory):
     return path
 
 
+class FakeRedis:
+    """In-memory stand-in for the two Redis calls predict uses."""
+
+    def __init__(self):
+        self.data = {}
+
+    async def get(self, key):
+        return self.data.get(key)
+
+    async def set(self, key, value, ex=None):
+        self.data[key] = value
+
+
+class BrokenRedis:
+    """Every call fails, like a Redis server that is down."""
+
+    async def get(self, key):
+        raise RedisConnectionError('down')
+
+    async def set(self, key, value, ex=None):
+        raise RedisConnectionError('down')
+
+
 @pytest.fixture
-def spam_classifier(fake_model_dir):
+def fake_redis():
+    # ASGITransport doesn't run the app lifespan, so set the client by hand
+    app.state.redis = FakeRedis()
+    yield app.state.redis
+    del app.state.redis
+
+
+@pytest.fixture
+def broken_redis(fake_redis):
+    # Replaces the fake with one that always fails. fake_redis is listed so its cleanup still runs.
+    app.state.redis = BrokenRedis()
+
+
+@pytest.fixture
+def spam_classifier(fake_model_dir, fake_redis):
     # ASGITransport doesn't run the app lifespan, so set the classifier by hand
     app.state.spam_classifier = SpamClassifier(fake_model_dir)
     yield app.state.spam_classifier
