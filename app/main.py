@@ -5,6 +5,7 @@ from app.ml_model import SpamClassifier
 from app.auth.router import router as auth_router
 from app.predict.router import router as predict_router
 from app.core.config import get_settings
+from app.core.metrics import MODEL_F1
 from redis.asyncio import Redis
 from prometheus_fastapi_instrumentator import Instrumentator
 
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI):
         socket_connect_timeout=1
     )
     app.state.spam_classifier = SpamClassifier()
+    MODEL_F1.labels(model_version=app.state.spam_classifier.version).set(app.state.spam_classifier.metadata['f1'])
     yield
     await app.state.redis.aclose()
 
@@ -41,7 +43,8 @@ instrumentator = Instrumentator(
     excluded_handlers=['/metrics'],
     should_instrument_requests_inprogress=True
 )
-instrumentator.instrument(app).expose(app)
+# Hidden from /docs. /metrics shows internals, so keep it off the public internet in production
+instrumentator.instrument(app).expose(app, include_in_schema=False)
 
 
 app.include_router(auth_router)
