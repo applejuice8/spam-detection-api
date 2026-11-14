@@ -13,7 +13,7 @@ async def test_predict_spam(client, spam_classifier, headers):
     body = r.json()
     assert body['label'] == 'spam'
     assert body['spam_probability'] > 0.5
-    assert body['model_f1'] == spam_classifier.metadata['f1']
+    assert 'model_f1' not in body
 
 
 async def test_predict_ham(client, spam_classifier, headers):
@@ -48,7 +48,7 @@ async def test_predict_second_call_comes_from_cache(client, spam_classifier, hea
     assert second.json()['from_cache'] is True
     assert second.json()['label'] == first.json()['label']
     assert second.json()['spam_probability'] == first.json()['spam_probability']
-    assert second.json()['model_f1'] == spam_classifier.metadata['f1']
+    assert 'model_f1' not in second.json()
 
 
 async def test_predict_cache_key_does_not_contain_raw_text(client, spam_classifier, fake_redis, headers):

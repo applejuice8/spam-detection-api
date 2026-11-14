@@ -8,5 +8,4 @@ class PredictRequest(BaseModel):
 class PredictResponse(BaseModel):
     label: str
     spam_probability: float
-    model_f1: float
     from_cache: bool

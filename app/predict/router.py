@@ -39,7 +39,7 @@ async def read_cache(cache: CacheDep, key: str) -> dict | None:
 
     try:
         result = json.loads(cached)
-        PredictResponse(**result, model_f1=0.0, from_cache=True)       # Validates the shape
+        PredictResponse(**result, from_cache=True)       # Validates the shape
     except (ValueError, TypeError, ValidationError):
         PREDICTION_CACHE.labels(result='error').inc()
         return None
@@ -57,7 +57,7 @@ async def predict(req: PredictRequest, model: SpamClassifierDep, user: APIKeyUse
     result = await read_cache(cache, key)
     if result is not None:
         PREDICTIONS.labels(label=result['label']).inc()
-        return PredictResponse(**result, model_f1=model.metadata['f1'], from_cache=True)
+        return PredictResponse(**result, from_cache=True)
 
     # CPU bound, so run it in a thread instead of blocking the event loop
     with MODEL_INFERENCE_SECONDS.time():
@@ -66,4 +66,4 @@ async def predict(req: PredictRequest, model: SpamClassifierDep, user: APIKeyUse
 
     await cache.set(key, json.dumps(result), ex=CACHE_TTL_SECONDS)
 
-    return PredictResponse(**result, model_f1=model.metadata['f1'], from_cache=False)
+    return PredictResponse(**result, from_cache=False)

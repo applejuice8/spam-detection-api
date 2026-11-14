@@ -34,7 +34,7 @@ curl -X POST localhost:8000/auth/api-keys -H "Authorization: Bearer $ACCESS_TOKE
 # 3. Classify a message
 curl -X POST localhost:8000/predict -H "X-API-Key: $API_KEY" -H 'content-type: application/json' \
   -d '{"text": "WINNER!! Claim your free prize now"}'
-# {"label":"spam","spam_probability":0.99,"model_f1":0.95,"from_cache":false}
+# {"label":"spam","spam_probability":0.99,"from_cache":false}
 ```
 
 Other auth routes: `/auth/refresh` (a refresh token works once), `/auth/logout`, `/auth/logout-all` (ends every session), `/auth/me`, and `GET`/`DELETE /auth/api-keys`.
@@ -99,7 +99,7 @@ Limits to know about:
 
 - It was trained on about 5,000 English SMS messages. Other languages, long emails and newer spam styles will do worse.
 - `spam_probability` from Naive Bayes is not well calibrated. Treat it as a score, not a percentage.
-- `model_f1` in the response is the score on the test set, not a confidence for that message.
+- The response has no overall model score. The test-set F1 is not a confidence for one message. It is exported as the `spam_model_f1` metric.
 
 `ml/notebooks/01_experiments.ipynb` holds the hyperparameter search. It shares its data and split with `train.py`. Run it with `uv sync --group train --group notebook`.
 
