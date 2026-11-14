@@ -10,7 +10,7 @@ from app.ml_model import SpamClassifier
 @pytest.fixture
 def running_app(fake_model_dir, monkeypatch):
     """The real app with its lifespan (startup and shutdown) running, using the fake model."""
-    monkeypatch.setattr(main, 'SpamClassifier', lambda: SpamClassifier(fake_model_dir))
+    monkeypatch.setattr(main, 'SpamClassifier', lambda threshold: SpamClassifier(fake_model_dir, threshold))
     with TestClient(main.app) as c:
         yield c
 
@@ -43,7 +43,7 @@ def test_metrics_are_not_served_on_the_api_port(running_app):
 
 
 def test_shutdown_stops_the_metrics_server(fake_model_dir, monkeypatch):
-    monkeypatch.setattr(main, 'SpamClassifier', lambda: SpamClassifier(fake_model_dir))
+    monkeypatch.setattr(main, 'SpamClassifier', lambda threshold: SpamClassifier(fake_model_dir, threshold))
     with TestClient(main.app):
         port = main.app.state.metrics_server.server_port
         fetch(f'http://127.0.0.1:{port}/metrics')

@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
         socket_timeout=1,
         socket_connect_timeout=1
     ))
-    app.state.spam_classifier = SpamClassifier()
+    app.state.spam_classifier = SpamClassifier(threshold=settings.spam_threshold)
     MODEL_F1.labels(model_version=app.state.spam_classifier.version).set(app.state.spam_classifier.metadata['f1'])
 
     # /metrics shows internals, so it gets a separate port that is not published to the internet

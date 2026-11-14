@@ -1,4 +1,4 @@
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     # 0 picks a free port (tests). Use 0.0.0.0 as the host inside a container so Prometheus can reach it.
     metrics_host: str = '127.0.0.1'
     metrics_port: int = 9100
+    # Spam probability at or above which a message is labelled spam. Higher blocks fewer real messages but misses more spam.
+    spam_threshold: float = Field(default=0.5, gt=0, lt=1)
     redis_url: str = 'redis://localhost:6379/0'
     allowed_origins: list[str] = ['http://localhost:3000', 'http://127.0.0.1:5500']
 

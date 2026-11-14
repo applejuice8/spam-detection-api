@@ -6,17 +6,23 @@ import joblib
 import sklearn
 
 
-MODEL_DIR = Path('ml/models')
+# Anchored to this file, so the model loads from any working directory
+MODEL_DIR = Path(__file__).resolve().parent.parent / 'ml' / 'models'
+DEFAULT_THRESHOLD = 0.5
 SPAM_CLASS = 1      # Label value for spam, must match LABELS in ml/train.py
 SPAM_COLUMN = 1     # Position of class in predict_proba (Sklearn sorts classes ascending)
 
 
 class SpamClassifier:
-    def __init__(self, model_dir: Path = MODEL_DIR):
+    # threshold: spam probability at or above which a message is labelled spam. Raise it to block fewer real messages.
+    def __init__(self, model_dir: Path = MODEL_DIR, threshold: float = DEFAULT_THRESHOLD):
+        self.threshold = threshold
         self.pipe = joblib.load(model_dir / 'spam_detector.pkl')
         self.metadata = json.loads((model_dir / 'metadata.json').read_text())
-        # Changes whenever the model is retrained, so cached predictions from an old model are not reused
-        self.version = hashlib.sha256((model_dir / 'spam_detector.pkl').read_bytes()).hexdigest()[:12]
+        # Changes when the model is retrained or the threshold changes, so cached labels from before are not reused
+        digest = hashlib.sha256((model_dir / 'spam_detector.pkl').read_bytes())
+        digest.update(f'threshold={threshold}'.encode())
+        self.version = digest.hexdigest()[:12]
         self.labels = {int(k): v for k, v in self.metadata['labels'].items()}
         assert self.labels[SPAM_CLASS] == 'spam', 'metadata.json label mapping changed'
 
@@ -29,7 +35,7 @@ class SpamClassifier:
         probas = self.pipe.predict_proba(texts)[:, SPAM_COLUMN]    # Only keep spam probability
         return [
             {
-                'label': self.labels[int(p >= 0.5)],
+                'label': self.labels[int(p >= self.threshold)],
                 'spam_probability': float(p),
             }
             for p in probas
