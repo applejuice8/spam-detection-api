@@ -11,7 +11,10 @@ wheels/
 .venv
 .env
 
-.DS_STORE
+.DS_Store
+
+# Local SQLite databases
+*.db
 
 # ML
 ml/models/
