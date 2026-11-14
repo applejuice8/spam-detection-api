@@ -4,13 +4,32 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    # Weekly, so a new vulnerability in a locked dependency shows up even when nobody pushes
+    - cron: "0 6 * * 1"
 
 concurrency:
   group: tests-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
+  lint:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run ruff check .
+
   pytest:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -26,4 +45,91 @@ jobs:
         run: uv sync --locked --group train
 
       - name: Run tests
+        # Uses a small fake model, so it needs no trained files
         run: uv run pytest tests
+
+  # Trains the real model, so the tests that check its quality run instead of being skipped.
+  # Separate job: it downloads the dataset from Kaggle, and an outage there should not hide test results.
+  model-quality:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked --group train
+      - name: Train model
+        run: uv run python -m ml.train
+      - name: Check the trained model
+        run: uv run pytest tests/test_train.py -v
+
+  # Runs the migrations on a real PostgreSQL, which is what production uses. The tests use SQLite.
+  migrations:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: spam
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URI: postgresql+psycopg://postgres:postgres@localhost:5432/spam
+      JWT_SECRET: ci-only-secret-ci-only-secret-ci-only-secret
+      ACCESS_TOKEN_EXPIRES_MINUTES: "15"
+      REFRESH_TOKEN_EXPIRE_DAYS: "7"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - name: Upgrade to the latest revision
+        run: uv run alembic upgrade head
+      - name: Downgrade everything
+        run: uv run alembic downgrade base
+      - name: Upgrade again
+        run: uv run alembic upgrade head
+
+  # Fails when a locked runtime dependency has a known vulnerability
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Audit locked dependencies
+        run: |
+          uv export --locked --no-dev --no-emit-project --no-hashes -o requirements.txt
+          uvx pip-audit -r requirements.txt --no-deps --disable-pip
+
+  # Builds the image, including training the model, and checks the compose file
+  docker:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: spam-detection-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Check compose file
+        run: |
+          touch .env
+          GRAFANA_ADMIN_PASSWORD=ci docker compose config --quiet
