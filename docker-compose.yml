@@ -1,6 +1,8 @@
-# Runs the API, Redis and the demo frontend together.
-#   API:      http://localhost:8000  (docs at /docs)
-#   Frontend: http://localhost:8080
+# Runs the API, Redis, the demo frontend, Prometheus and Grafana together.
+#   API:        http://localhost:8000  (docs at /docs, metrics at /metrics)
+#   Frontend:   http://localhost:8080
+#   Prometheus: http://localhost:9090  (localhost only)
+#   Grafana:    http://localhost:3000  (localhost only)
 # The database is the hosted one in DATABASE_URI (.env), so no database service is needed here.
 
 services:
@@ -45,3 +47,42 @@ services:
     depends_on:
       - api
     restart: unless-stopped
+
+  # Pulls /metrics from the API every 15s and keeps 15 days of history.
+  # Published on localhost only. Use it to check Status > Targets and to try queries.
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # Dashboards. The data source is loaded from ./monitoring/grafana/provisioning.
+  # Published on localhost only: http://localhost:3000 (login: admin / GRAFANA_ADMIN_PASSWORD)
+  grafana:
+    image: grafana/grafana:13.3.1
+    environment:
+      # Set GRAFANA_ADMIN_PASSWORD in .env. The fallback is for local use only.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+# Keep metric history and Grafana settings when containers are recreated
+volumes:
+  prometheus-data:
+  grafana-data:
