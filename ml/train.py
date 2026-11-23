@@ -48,9 +48,6 @@ def split_X_y_train_test(df):
 
 
 # Params selected from notebook best CV F1 score (ml/notebooks/01_experiments.ipynb).
-# The notebook picked TfidfVectorizer, but BernoulliNB(binarize=0.0) turns every non-zero weight into 1,
-# so the TF-IDF weighting had no effect. CountVectorizer(binary=True) gives the same features and the
-# same predictions (checked on the full test set), and doesn't suggest weights matter.
 def setup_pipe():
     vectorizer = CountVectorizer(
         max_df=0.95,
@@ -72,7 +69,7 @@ def setup_pipe():
     return Pipeline([('vec', vectorizer), ('model', model)])
 
 
-def save_artifacts(pipe, scores, X_train, X_test, y_test):
+def save_model(pipe, scores, X_train, X_test, y_test):
     # Create dir
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     TEST_DIR.mkdir(parents=True, exist_ok=True)
@@ -97,8 +94,9 @@ def save_artifacts(pipe, scores, X_train, X_test, y_test):
 
 
 def train():
-    # Load, split data
+    # Load data
     df = load_dataset()
+    # Split data
     X_train, X_test, y_train, y_test = split_X_y_train_test(df)
 
     # Fit pipe
@@ -108,9 +106,7 @@ def train():
     pred = pipe.predict(X_test)
     scores = {
         'f1': f1_score(y_test, pred),
-        # Precision: of the messages flagged as spam, how many were. Low means real messages get blocked.
         'precision': precision_score(y_test, pred),
-        # Recall: of the real spam, how much was caught
         'recall': recall_score(y_test, pred),
     }
     print(f"Test F1: {scores['f1']:.4f}  precision: {scores['precision']:.4f}  recall: {scores['recall']:.4f}")
@@ -118,7 +114,7 @@ def train():
         raise SystemExit(f"Quality gate failed: F1 {scores['f1']:.3f} < {MIN_F1}")
 
     # Save
-    save_artifacts(pipe, scores, X_train, X_test, y_test)
+    save_model(pipe, scores, X_train, X_test, y_test)
 
 
 if __name__ == '__main__':
