@@ -1,8 +1,7 @@
 from prometheus_client import Counter, Gauge, Histogram
 
 
-# Metrics the HTTP instrumentator can't know about. Labels must stay small fixed sets:
-# never put user text, usernames or API keys in a label.
+# Metrics the HTTP instrumentator can't know about
 
 # Every prediction served, including ones answered from the cache. Spam share = spam rate / total rate.
 PREDICTIONS = Counter(
@@ -11,7 +10,7 @@ PREDICTIONS = Counter(
     ['label']                       # spam, ham
 )
 
-# result: hit (found), miss (not found), error (Redis failed, model used instead)
+# result: hit (found), miss (not found), error
 PREDICTION_CACHE = Counter(
     'spam_prediction_cache_total',
     'Prediction cache lookups, by result',

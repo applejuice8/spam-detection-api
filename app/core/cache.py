@@ -8,11 +8,10 @@ from redis.exceptions import RedisError
 
 
 class CacheUnavailable(Exception):
-    """Redis is down, or was recently seen failing and is being skipped."""
+    '''Redis down'''
 
 
-# Redis is optional: callers carry on without it. After one failure it is skipped for `cooldown` seconds,
-# so a dead Redis costs one slow request (the client's socket timeout), not one per Redis call.
+# Skip redis if down
 class RedisGuard:
     def __init__(self, redis: Redis, cooldown: float = 30.0, clock: Callable[[], float] = time.monotonic):
         self.redis = redis
@@ -45,7 +44,6 @@ class RedisGuard:
         except RedisError:
             self._trip()
 
-    # Fixed window counter. Returns how many times `key` was counted in the current window.
     # The expiry is set atomically with the increment, so a crash can't leave a counter that never resets.
     async def count(self, key: str, window_seconds: int) -> int:
         self._check()

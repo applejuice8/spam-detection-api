@@ -3,7 +3,6 @@ from app.core.cache import CacheDep, CacheUnavailable
 from app.core.metrics import RATE_LIMITED
 
 
-# scope -> (requests allowed, window in seconds). Fixed windows, so a burst across a boundary can reach 2x the limit.
 # Looked up on every request, so a limit can be changed at runtime (tests do).
 LIMITS = {
     'login': (10, 60),              # Per client IP. Slows password guessing.
@@ -15,8 +14,7 @@ LIMITS = {
 
 
 def client_ip(req: Request) -> str:
-    # Behind a reverse proxy this is the proxy's address unless uvicorn trusts its X-Forwarded-For header.
-    # Set FORWARDED_ALLOW_IPS to the proxy's address (see README).
+    # Behind a reverse proxy this is the proxy's address
     return req.client.host if req.client else 'unknown'
 
 
@@ -37,7 +35,8 @@ async def enforce(cache, scope: str, identity: str) -> None:
         )
 
 
+# Dependency factory
 def limit_by_ip(scope: str):
-    async def dependency(req: Request, cache: CacheDep) -> None:
+    async def dependency(req: Request, cache: CacheDep) -> None:    # Run on every request
         await enforce(cache, scope, client_ip(req))
     return Depends(dependency)

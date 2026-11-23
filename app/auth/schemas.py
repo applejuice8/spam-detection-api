@@ -7,7 +7,6 @@ PASSWORD_MAX_LENGTH = 128
 
 
 class SignupIn(BaseModel):
-    # Letters, digits and . _ - only: no spaces or look-alike characters
     username: str = Field(min_length=3, max_length=20, pattern=r'^[A-Za-z0-9._-]+$')
     password: str = Field(min_length=8, max_length=PASSWORD_MAX_LENGTH)
     confirm_password: str
@@ -40,7 +39,6 @@ class RefreshIn(BaseModel):
 
 
 # API Key
-# Lifetime choices for a new key. Free-form values are rejected.
 class APIKeyCreateIn(BaseModel):
     expires_in_days: Literal[7, 30, 90, 180, 365] = 90
 
@@ -55,6 +53,6 @@ class APIKeyOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# Raw key, only returned once at creation
 class APIKeyCreatedOut(APIKeyOut):
-    # Raw key, only returned once at creation
     api_key: str

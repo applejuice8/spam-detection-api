@@ -13,19 +13,18 @@ from app.core.metrics import MODEL_INFERENCE_SECONDS, PREDICTION_CACHE, PREDICTI
 
 router = APIRouter(
     prefix='/predict', tags=['predict'],
-    # Listed first so it runs before the API key lookup
-    dependencies=[rate_limit.limit_by_ip('predict_ip')]
+    dependencies=[rate_limit.limit_by_ip('predict_ip')]     # Runs before the API key lookup
 )
 
 CACHE_TTL_SECONDS = 3600
 
 
-# Hash keeps keys short and keeps raw user text out of Redis. The model version stops old predictions being reused after retraining.
+# Hash keeps keys short and keeps raw user text out of Redis
 def cache_key(text: str, model_version: str) -> str:
     return f'spam:{model_version}:{hashlib.sha256(text.encode()).hexdigest()}'
 
 
-# The cache is optional: if Redis is down, or an entry is unreadable, treat it as a miss
+# If Redis is down, or an entry is unreadable, treat it as a miss
 async def read_cache(cache: CacheDep, key: str) -> dict | None:
     try:
         cached = await cache.get(key)
@@ -39,7 +38,7 @@ async def read_cache(cache: CacheDep, key: str) -> dict | None:
 
     try:
         result = json.loads(cached)
-        PredictResponse(**result, from_cache=True)       # Validates the shape
+        PredictResponse(**result, from_cache=True)       # Validates shape
     except (ValueError, TypeError, ValidationError):
         PREDICTION_CACHE.labels(result='error').inc()
         return None
@@ -59,7 +58,7 @@ async def predict(req: PredictRequest, model: SpamClassifierDep, user: APIKeyUse
         PREDICTIONS.labels(label=result['label']).inc()
         return PredictResponse(**result, from_cache=True)
 
-    # CPU bound, so run it in a thread instead of blocking the event loop
+    # CPU bound, run it in a thread instead of blocking the event loop
     with MODEL_INFERENCE_SECONDS.time():
         result = (await run_in_threadpool(model.predict, [req.text]))[0]
     PREDICTIONS.labels(label=result['label']).inc()

@@ -19,7 +19,7 @@ ph = PasswordHash.recommended()
 DUMMY_HASH = ph.hash('you-are-stupid')
 
 
-# SQLite returns naive datetimes, Postgres returns aware ones. Stored times are always UTC.
+# Store times in UTC (SQLite returns naive datetimes, Postgres returns aware ones)
 def as_utc(dt: datetime) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 

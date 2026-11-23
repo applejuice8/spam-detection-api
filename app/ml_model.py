@@ -14,14 +14,14 @@ SPAM_COLUMN = 1     # Position of class in predict_proba (Sklearn sorts classes 
 
 
 class SpamClassifier:
-    # threshold: spam probability at or above which a message is labelled spam. Raise it to block fewer real messages.
     def __init__(self, model_dir: Path = MODEL_DIR, threshold: float = DEFAULT_THRESHOLD):
         self.threshold = threshold
         self.pipe = joblib.load(model_dir / 'spam_detector.pkl')
         self.metadata = json.loads((model_dir / 'metadata.json').read_text())
-        # Changes when the model is retrained or the threshold changes, so cached labels from before are not reused
+
         digest = hashlib.sha256((model_dir / 'spam_detector.pkl').read_bytes())
         digest.update(f'threshold={threshold}'.encode())
+
         self.version = digest.hexdigest()[:12]
         self.labels = {int(k): v for k, v in self.metadata['labels'].items()}
         assert self.labels[SPAM_CLASS] == 'spam', 'metadata.json label mapping changed'
