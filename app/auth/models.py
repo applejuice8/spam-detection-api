@@ -1,22 +1,26 @@
 from app.db import Base
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, DateTime, func, ForeignKey, Boolean, Index
-from datetime import datetime
+from sqlalchemy import String, DateTime, func, ForeignKey, Boolean
+from sqlalchemy.dialects.postgresql import CITEXT
+from datetime import datetime, timezone
 
 
 class User(Base):
     __tablename__ = 'user'
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    username: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
+    username: Mapped[str] = mapped_column(
+        CITEXT().with_variant(String(20, collation='NOCASE'), 'sqlite'),
+        unique=True,
+        nullable=False,
+    )
     password: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    # Access tokens issued at or before this moment are rejected (set by "log out everywhere")
-    tokens_valid_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
-
-# Usernames are unique ignoring case, so "Alice" and "alice" can't both exist
-Index('ix_user_username_lower', func.lower(User.username), unique=True)
+    tokens_valid_after: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime(1970, 1, 1, tzinfo=timezone.utc),
+        nullable=False,
+    )
 
 
 class RefreshToken(Base):
@@ -28,9 +32,7 @@ class RefreshToken(Base):
         index=True
     )
     token: Mapped[str] = mapped_column(String(255), unique=True)
-    # One login = one family. Refreshing keeps the family, so replaying an old token can revoke it all.
-    # Null for tokens issued before families existed.
-    family_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    family_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
 

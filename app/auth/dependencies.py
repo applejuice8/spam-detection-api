@@ -41,9 +41,8 @@ async def get_current_user(token: OAuth2Dep, db: DBDep) -> User:
             headers={'WWW-Authenticate': 'Bearer'}
         )
 
-    # "Log out everywhere" invalidates access tokens issued at or before that moment.
-    # iat has one-second precision, so a token issued in the same second counts as before.
-    if user.tokens_valid_after and payload['iat'] <= int(as_utc(user.tokens_valid_after).timestamp()):
+    # Log out everywhere
+    if payload['iat'] <= int(as_utc(user.tokens_valid_after).timestamp()):
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             'Token revoked',

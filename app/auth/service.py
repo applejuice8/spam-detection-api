@@ -16,8 +16,10 @@ async def create_user(db: AsyncSession, data: SignupIn) -> User:
     if existing:
         raise ValueError('Username already exists')
 
-    # Argon2 is deliberately slow CPU work. In a thread, it can't stall other requests.
-    user = User(username=data.username, password=await run_in_threadpool(hash_password, data.password))
+    user = User(
+        username=data.username,
+        password=await run_in_threadpool(hash_password, data.password)
+    )
     db.add(user)
 
     try:
@@ -30,7 +32,6 @@ async def create_user(db: AsyncSession, data: SignupIn) -> User:
 
 
 async def authenticate_user(db: AsyncSession, data: LoginIn) -> User | None:
-    # No account can have a longer password (signup caps it), so skip the expensive hash
     if len(data.password) > PASSWORD_MAX_LENGTH:
         return None
 
@@ -61,21 +62,19 @@ async def store_refresh_token(db: AsyncSession, user_id: int, raw_token: str) ->
     await db.commit()
 
 
+# Revoke all token in the family
 async def _revoke_family(db: AsyncSession, row: RefreshToken) -> None:
-    if row.family_id is None:
-        stmt = update(RefreshToken).where(RefreshToken.id == row.id)
-    else:
-        stmt = update(RefreshToken).where(RefreshToken.family_id == row.family_id)
+    stmt = update(RefreshToken).where(RefreshToken.family_id == row.family_id)
     await db.execute(stmt.values(revoked=True).execution_options(synchronize_session=False))
 
 
 # Swap a refresh token for a new one in a single transaction, so a failure can't leave the user logged out.
-# Presenting a token that was already used means it was probably stolen, so its whole family is revoked.
 async def rotate_refresh_token(db: AsyncSession, raw_token: str, new_raw_token: str) -> int | None:
     row = await db.scalar(select(RefreshToken).where(RefreshToken.token == fast_hash(raw_token)))
     if row is None:
         return None
 
+    # Presenting a used token means it was probably stolen, so whole family is revoked
     if row.revoked:
         await _revoke_family(db, row)
         await db.commit()
@@ -91,22 +90,22 @@ async def rotate_refresh_token(db: AsyncSession, raw_token: str, new_raw_token: 
         )
         .values(revoked=True)
         .returning(RefreshToken.id)
-        # Skip re-checking the WHERE clause against loaded objects in Python. The database is the source of truth.
-        .execution_options(synchronize_session=False)
+        .execution_options(synchronize_session=False)   # Skip re-checking the WHERE clause against loaded objects
     )
     if claimed is None:
-        # Expired, or lost a race against another use of the same token
+        # Not expired, means lost a race against another use of the same token
         if as_utc(row.expires_at) > datetime.now(timezone.utc):
             await _revoke_family(db, row)
         await db.commit()
         return None
 
-    db.add(_new_refresh_row(row.user_id, new_raw_token, row.family_id or str(uuid.uuid4())))
+    # Issue new token
+    db.add(_new_refresh_row(row.user_id, new_raw_token, row.family_id))
     await db.commit()
     return row.user_id
 
 
-# Logout: end this login on this device, including any newer tokens from refreshing it
+# Logout: end this login on this device
 async def revoke_refresh_family(db: AsyncSession, raw_token: str) -> None:
     row = await db.scalar(select(RefreshToken).where(RefreshToken.token == fast_hash(raw_token)))
     if row is not None:

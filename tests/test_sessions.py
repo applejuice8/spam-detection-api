@@ -76,18 +76,6 @@ async def test_logout_leaves_other_logins_alone(client, registered):
     assert (await refresh(client, phone['refresh_token'])).status_code == 200
 
 
-async def test_legacy_token_without_family_can_still_refresh(client, tokens, session_maker):
-    # Tokens issued before families existed have family_id NULL
-    async with session_maker() as s:
-        row = await s.scalar(select(RefreshToken))
-        row.family_id = None
-        await s.commit()
-
-    r = await refresh(client, tokens['refresh_token'])
-    assert r.status_code == 200
-    assert (await refresh(client, tokens['refresh_token'])).status_code == 401
-
-
 async def test_rotation_is_one_transaction(client, tokens, session_maker, monkeypatch):
     # If storing the new token fails, the old one must stay usable
     import app.auth.service as service

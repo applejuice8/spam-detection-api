@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
-from app.auth.maintenance import API_KEY_RETENTION, purge_expired, purge_loop
+from app.auth.purge import API_KEY_RETENTION, purge_expired, purge_loop
 from app.auth.models import APIKey, RefreshToken
 
 from .test_auth import bearer
@@ -13,8 +13,8 @@ async def test_purge_removes_only_expired_refresh_tokens(client, tokens, registe
     now = datetime.now(timezone.utc)
     async with session_maker() as s:
         live = await s.scalar(select(RefreshToken))
-        s.add(RefreshToken(user_id=live.user_id, token='expired', expires_at=now - timedelta(minutes=1)))
-        s.add(RefreshToken(user_id=live.user_id, token='revoked-but-live', revoked=True, expires_at=now + timedelta(days=1)))
+        s.add(RefreshToken(user_id=live.user_id, token='expired', family_id='expired-family', expires_at=now - timedelta(minutes=1)))
+        s.add(RefreshToken(user_id=live.user_id, token='revoked-but-live', family_id='revoked-family', revoked=True, expires_at=now + timedelta(days=1)))
         await s.commit()
 
     async with session_maker() as s:

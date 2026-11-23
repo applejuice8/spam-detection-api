@@ -20,10 +20,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # Nullable: tokens issued before this migration have no family
-    op.add_column('refresh_token', sa.Column('family_id', sa.String(length=36), nullable=True))
+    op.add_column('refresh_token', sa.Column('family_id', sa.String(length=36), nullable=False))
     op.create_index(op.f('ix_refresh_token_family_id'), 'refresh_token', ['family_id'], unique=False)
-    op.add_column('user', sa.Column('tokens_valid_after', sa.DateTime(timezone=True), nullable=True))
+    op.add_column(
+        'user',
+        sa.Column(
+            'tokens_valid_after',
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("'1970-01-01 00:00:00+00'"),
+        ),
+    )
 
 
 def downgrade() -> None:
