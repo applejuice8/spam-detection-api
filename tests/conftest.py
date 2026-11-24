@@ -5,11 +5,10 @@ import os
 # so this also guarantees tests can never touch your dev database.
 os.environ.update({
     'DATABASE_URI': 'sqlite+aiosqlite://',
-    'DEBUG': 'false',
     'JWT_SECRET': 'test-secret-test-secret-test-secret-123',
-    'JWT_ALGORITHM': 'HS256',
     'ACCESS_TOKEN_EXPIRES_MINUTES': '15',
     'REFRESH_TOKEN_EXPIRE_DAYS': '7',
+    'METRICS_PORT': '0',        # Any free port, so tests never clash with a running dev server
 })
 
 import json
@@ -27,6 +26,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy.pool import StaticPool
 
 import app.models_registry      # Makes sure models registered on Base
+from app.core.cache import RedisGuard
 from app.db import Base, get_db
 from app.main import app
 from app.ml_model import SpamClassifier
@@ -49,7 +49,7 @@ async def session_maker():
 
 
 @pytest_asyncio.fixture
-async def client(session_maker):
+async def client(session_maker, fake_redis):
     async def override_get_db():
         async with session_maker() as session:
             yield session
@@ -105,41 +105,88 @@ def fake_model_dir(tmp_path_factory):
     return path
 
 
-class FakeRedis:
-    """In-memory stand-in for the two Redis calls predict uses."""
+class FakePipeline:
+    def __init__(self, redis):
+        self.redis = redis
+        self.ops = []
 
-    def __init__(self):
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    def incr(self, key):
+        self.ops.append(('incr', key))
+        return self
+
+    def expire(self, key, seconds, nx=False):
+        self.ops.append(('expire', key, seconds, nx))
+        return self
+
+    async def execute(self):
+        if self.redis.broken:
+            raise RedisConnectionError('down')
+        results = []
+        for op, key, *rest in self.ops:
+            if op == 'incr':
+                self.redis.counters[key] = self.redis.counters.get(key, 0) + 1
+                results.append(self.redis.counters[key])
+            else:
+                seconds, nx = rest
+                if not (nx and key in self.redis.ttls):
+                    self.redis.ttls[key] = seconds
+                results.append(True)
+        return results
+
+
+class FakeRedis:
+    """In-memory stand-in for the Redis calls the app uses. broken=True makes every call fail, like a Redis that is down."""
+
+    def __init__(self, broken=False):
         self.data = {}
+        self.counters = {}
+        self.ttls = {}
+        self.broken = broken
+        self.calls = 0
+
+    def _call(self):
+        self.calls += 1
+        if self.broken:
+            raise RedisConnectionError('down')
 
     async def get(self, key):
+        self._call()
         return self.data.get(key)
 
     async def set(self, key, value, ex=None):
+        self._call()
         self.data[key] = value
 
+    def pipeline(self, transaction=True):
+        self.calls += 1
+        return FakePipeline(self)
 
-class BrokenRedis:
-    """Every call fails, like a Redis server that is down."""
-
-    async def get(self, key):
-        raise RedisConnectionError('down')
-
-    async def set(self, key, value, ex=None):
-        raise RedisConnectionError('down')
+    def reset_windows(self):
+        """Pretend every rate limit window has passed."""
+        self.counters.clear()
+        self.ttls.clear()
 
 
 @pytest.fixture
 def fake_redis():
-    # ASGITransport doesn't run the app lifespan, so set the client by hand
-    app.state.redis = FakeRedis()
-    yield app.state.redis
-    del app.state.redis
+    # ASGITransport doesn't run the app lifespan, so set the cache by hand
+    fake = FakeRedis()
+    app.state.cache = RedisGuard(fake)
+    yield fake
+    del app.state.cache
 
 
 @pytest.fixture
 def broken_redis(fake_redis):
-    # Replaces the fake with one that always fails. fake_redis is listed so its cleanup still runs.
-    app.state.redis = BrokenRedis()
+    # Makes the fake fail on every call. fake_redis is listed so its cleanup still runs.
+    fake_redis.broken = True
+    return fake_redis
 
 
 @pytest.fixture

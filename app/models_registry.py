@@ -1,1 +1,1 @@
-import app.auth.models
+import app.auth.models  # noqa: F401

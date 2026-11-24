@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 import jwt
 from typing import Annotated
 from app.db import DBDep
-from app.core.security import decode_access_token, fast_hash
+from app.core.security import as_utc, decode_access_token, fast_hash
 from app.auth.models import User, APIKey
 from app.core.metrics import API_KEY_REJECTIONS
 from sqlalchemy import select
@@ -25,19 +25,27 @@ async def get_current_user(token: OAuth2Dep, db: DBDep) -> User:
             status.HTTP_401_UNAUTHORIZED,
             'Token expired',
             headers={'WWW-Authenticate': 'Bearer'}
-        )
+        ) from None
     except (jwt.InvalidTokenError, ValueError):
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             'Invalid token',
             headers={'WWW-Authenticate': 'Bearer'}
-        )
+        ) from None
 
     user = await db.get(User, user_id)
     if not user:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             'User not found',
+            headers={'WWW-Authenticate': 'Bearer'}
+        )
+
+    # No cutoff means the user has never logged out everywhere.
+    if user.tokens_valid_after is not None and payload['iat'] <= int(as_utc(user.tokens_valid_after).timestamp()):
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            'Token revoked',
             headers={'WWW-Authenticate': 'Bearer'}
         )
     return user
@@ -65,7 +73,7 @@ async def get_api_key_user(api_key: APIKeyDep, db: DBDep) -> User:
         .join(APIKey, APIKey.user_id == User.id)
         .where(
             APIKey.key_hash == fast_hash(api_key),
-            APIKey.revoked == False,
+            APIKey.revoked.is_(False),
             APIKey.expires_at > datetime.now(timezone.utc)
         )
     )

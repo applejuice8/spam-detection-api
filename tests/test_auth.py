@@ -1,3 +1,4 @@
+import threading
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -6,7 +7,7 @@ from sqlalchemy import select, update
 
 from app.auth.models import RefreshToken, User
 from app.core.config import get_settings
-from app.core.security import fast_hash
+from app.core.security import JWT_ALGORITHM, fast_hash
 
 from .conftest import USER
 
@@ -20,7 +21,7 @@ def make_jwt(secret=None, **overrides):
     }
     payload = {k: v for k, v in payload.items() if v is not None}
     s = get_settings()
-    return jwt.encode(payload, secret or s.jwt_secret, algorithm=s.jwt_algorithm)
+    return jwt.encode(payload, secret or s.jwt_secret, algorithm=JWT_ALGORITHM)
 
 
 def bearer(token):
@@ -205,3 +206,48 @@ async def test_logout_revokes_refresh_token(client, tokens):
 async def test_logout_with_unknown_token_still_204(client):
     r = await client.post('/auth/logout', json={'refresh_token': 'nope'})
     assert r.status_code == 204
+
+# ---------- password hashing ----------
+async def test_login_rejects_oversized_password_without_hashing(client, registered, monkeypatch):
+    import app.auth.service as service
+
+    def fail(*args):
+        raise AssertionError('oversized password reached the hash function')
+
+    monkeypatch.setattr(service, 'verify_password', fail)
+    r = await client.post('/auth/login', data={'username': 'alice', 'password': 'x' * 100_000})
+    assert r.status_code == 401
+
+
+async def test_password_hashing_runs_off_the_event_loop(client, monkeypatch):
+    import app.auth.service as service
+
+    real = service.hash_password
+    seen = {}
+
+    def spy(password):
+        seen['thread'] = threading.get_ident()
+        return real(password)
+
+    monkeypatch.setattr(service, 'hash_password', spy)
+    loop_thread = threading.get_ident()
+    r = await client.post('/auth/signup', json={'username': 'bob', 'password': 'password123', 'confirm_password': 'password123'})
+    assert r.status_code == 201
+    assert seen['thread'] != loop_thread
+
+
+# ---------- usernames ----------
+async def test_signup_rejects_duplicate_username_ignoring_case(client, registered):
+    r = await client.post('/auth/signup', json={**USER, 'username': 'ALICE'})
+    assert r.status_code == 409
+
+
+@pytest.mark.parametrize('username', ['has space', 'tab\there', 'semi;colon', 'émile', '<b>x</b>'])
+async def test_signup_rejects_unsafe_username_characters(client, username):
+    r = await client.post('/auth/signup', json={**USER, 'username': username})
+    assert r.status_code == 422
+
+
+async def test_login_ignores_username_case(client, registered):
+    r = await client.post('/auth/login', data={'username': 'ALICE', 'password': registered['password']})
+    assert r.status_code == 200

@@ -290,7 +290,7 @@ $('predict').onclick = e => withBusy(e.target, async () => {
     $('resLabel').textContent = r.label;
     $('resCache').hidden = !r.from_cache;
     $('resBar').style.width = pct + '%';
-    $('resDetail').textContent = `Spam probability: ${pct}%  |  Model F1: ${r.model_f1.toFixed(3)}`;
+    $('resDetail').textContent = `Spam probability: ${pct}%`;
     $('result').style.display = 'block';
     say('predictMsg', '');
   } catch (err) {

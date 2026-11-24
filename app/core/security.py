@@ -6,6 +6,9 @@ import secrets
 from hashlib import sha256
 
 
+# Fixed on purpose: a configurable algorithm invites downgrade and misconfiguration
+JWT_ALGORITHM = 'HS256'
+
 settings = get_settings()
 ph = PasswordHash.recommended()
 
@@ -14,6 +17,11 @@ ph = PasswordHash.recommended()
 # Hackers can check response time to see which username exists
 # Dummy hash used to equalize timing when a username doesn't exist
 DUMMY_HASH = ph.hash('you-are-stupid')
+
+
+# Store times in UTC (SQLite returns naive datetimes, Postgres returns aware ones)
+def as_utc(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 def hash_password(password: str) -> str:
@@ -32,15 +40,15 @@ def create_access_token(user_id: int) -> str:
         'exp': now + timedelta(minutes=settings.access_token_expires_minutes),
         'type': 'access'
     }
-    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    return jwt.encode(payload, settings.jwt_secret, algorithm=JWT_ALGORITHM)
 
 
 def decode_access_token(token: str) -> dict:
     payload = jwt.decode(
         token,
         settings.jwt_secret,
-        algorithms=[settings.jwt_algorithm],
-        options={'require': ['exp', 'sub']}
+        algorithms=[JWT_ALGORITHM],
+        options={'require': ['exp', 'sub', 'iat']}
     )
     if payload.get('type') != 'access':
         raise jwt.InvalidTokenError('Wrong token type')

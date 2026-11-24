@@ -1,12 +1,13 @@
 # Runs the API, Redis, the demo frontend, Prometheus and Grafana together.
-#   API:        http://localhost:8000  (docs at /docs, metrics at /metrics)
+#   API:        http://localhost:8000  (docs at /docs)
 #   Frontend:   http://localhost:8080
 #   Prometheus: http://localhost:9090  (localhost only)
 #   Grafana:    http://localhost:3000  (localhost only)
+#   Metrics:    served by the API on port 9100 inside the compose network only, never published.
 # The database is the hosted one in DATABASE_URI (.env), so no database service is needed here.
 
 services:
-  # Prediction cache only: no persistence, capped memory, evicts the least recently used keys.
+  # Prediction cache and rate limit counters only: no persistence, capped memory, evicts the least recently used keys.
   # No ports are published, so only other containers on the compose network can reach it.
   redis:
     image: redis:7-alpine
@@ -17,6 +18,17 @@ services:
       timeout: 3s
       retries: 5
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 192m
+
+  # Applies database migrations once, then exits. The API starts after it succeeds.
+  migrate:
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    env_file: .env
+    restart: "no"
 
   api:
     build: .
@@ -27,9 +39,14 @@ services:
       ALLOWED_ORIGINS: '["http://localhost:8080","http://127.0.0.1:8080"]'
       # Inside the container, localhost is the container itself, so use the service name
       REDIS_URL: redis://redis:6379/0
+      # Metrics listen on all interfaces inside the container so Prometheus can reach them.
+      # Port 9100 is deliberately not published below.
+      METRICS_HOST: 0.0.0.0
     depends_on:
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "8000:8000"
     healthcheck:
@@ -39,16 +56,26 @@ services:
       retries: 3
       start_period: 20s
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.0"
 
   web:
     build: ./frontend
     ports:
       - "8080:80"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128m
 
-  # Pulls /metrics from the API every 15s and keeps 15 days of history.
+  # Pulls metrics from the API every 15s and keeps 15 days of history.
   # Published on localhost only. Use it to check Status > Targets and to try queries.
   prometheus:
     image: prom/prometheus:v3.16.0
@@ -64,14 +91,18 @@ services:
     depends_on:
       - api
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
 
   # Dashboards. The data source and dashboards are loaded from ./monitoring/grafana.
   # Published on localhost only: http://localhost:3000 (login: admin / GRAFANA_ADMIN_PASSWORD)
   grafana:
     image: grafana/grafana:13.3.1
     environment:
-      # Set GRAFANA_ADMIN_PASSWORD in .env. The fallback is for local use only.
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      # Required: set GRAFANA_ADMIN_PASSWORD in .env. There is no default, so Grafana never starts with a known password.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - grafana-data:/var/lib/grafana
@@ -82,6 +113,10 @@ services:
     depends_on:
       - prometheus
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
 
 # Keep metric history and Grafana settings when containers are recreated
 volumes:

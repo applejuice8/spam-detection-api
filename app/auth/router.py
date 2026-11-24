@@ -3,23 +3,30 @@ from typing import Annotated
 from app.db import DBDep
 from app.auth.dependencies import UserDep
 from app.auth.schemas import SignupIn, LoginIn, UserOut, TokenOut, RefreshIn, APIKeyCreateIn, APIKeyCreatedOut, APIKeyOut
-from app.auth.service import create_user, authenticate_user, store_refresh_token, consume_refresh_token, create_api_key, list_api_keys, revoke_api_key
+from app.auth.service import (
+    create_user, authenticate_user, store_refresh_token, rotate_refresh_token, revoke_refresh_family,
+    revoke_all_sessions, create_api_key, list_api_keys, revoke_api_key
+)
 from app.core.security import create_access_token, create_refresh_token
+from app.core import rate_limit
 from fastapi.security import OAuth2PasswordRequestForm
 
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 
 
-@router.post('/signup', response_model=UserOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    '/signup', response_model=UserOut, status_code=status.HTTP_201_CREATED,
+    dependencies=[rate_limit.limit_by_ip('signup')]
+)
 async def signup(req: SignupIn, db: DBDep):
     try:
         return await create_user(db, req)
     except ValueError as e:
-        raise HTTPException(status.HTTP_409_CONFLICT, str(e))
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
 
 
-@router.post('/login', response_model=TokenOut)
+@router.post('/login', response_model=TokenOut, dependencies=[rate_limit.limit_by_ip('login')])
 async def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DBDep):
     user = await authenticate_user(db, LoginIn(username=form.username, password=form.password))
     if not user:
@@ -36,9 +43,11 @@ async def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DBDep
     return TokenOut(access_token=access, refresh_token=refresh)
 
 
-@router.post('/refresh', response_model=TokenOut)
+@router.post('/refresh', response_model=TokenOut, dependencies=[rate_limit.limit_by_ip('refresh')])
 async def refresh(req: RefreshIn, db: DBDep):
-    user_id = await consume_refresh_token(db, req.refresh_token)
+    # Refresh token only works once
+    new_refresh = create_refresh_token()
+    user_id = await rotate_refresh_token(db, req.refresh_token, new_refresh)
     if user_id is None:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
@@ -46,15 +55,18 @@ async def refresh(req: RefreshIn, db: DBDep):
             headers={'WWW-Authenticate': 'Bearer'}
         )
 
-    # Refresh token only works once
-    new_refresh = create_refresh_token()
-    await store_refresh_token(db, user_id, new_refresh)
     return TokenOut(access_token=create_access_token(user_id), refresh_token=new_refresh)
 
 
 @router.post('/logout', status_code=status.HTTP_204_NO_CONTENT)
 async def logout(req: RefreshIn, db: DBDep):
-    await consume_refresh_token(db, req.refresh_token)
+    await revoke_refresh_family(db, req.refresh_token)
+
+
+# Revokes every refresh token. Access tokens issued before now stop working too.
+@router.post('/logout-all', status_code=status.HTTP_204_NO_CONTENT)
+async def logout_all(user: UserDep, db: DBDep):
+    await revoke_all_sessions(db, user.id)
 
 
 # API keys

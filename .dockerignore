@@ -17,6 +17,7 @@ frontend
 tests
 ml/notebooks
 ml/test_data
-ml/train.py
+# The model is trained inside the image build (see Dockerfile), not copied from this machine
+ml/models
 *.md
 docs

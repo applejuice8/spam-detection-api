@@ -6,5 +6,5 @@ scrape_configs:
   - job_name: spam-api
     metrics_path: /metrics
     static_configs:
-      # Compose service name and the port inside the network, not the published one
-      - targets: ["api:8000"]
+      # Compose service name and the metrics port (METRICS_PORT). Not published to the host.
+      - targets: ["api:9100"]
