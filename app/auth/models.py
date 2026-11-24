@@ -2,7 +2,7 @@ from app.db import Base
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, DateTime, func, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import CITEXT
-from datetime import datetime, timezone
+from datetime import datetime
 
 
 class User(Base):
@@ -10,16 +10,15 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     username: Mapped[str] = mapped_column(
-        CITEXT().with_variant(String(20, collation='NOCASE'), 'sqlite'),
+        CITEXT().with_variant(String(20, collation='NOCASE'), 'sqlite'),    # Use String for sqlite
         unique=True,
         nullable=False,
     )
     password: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    tokens_valid_after: Mapped[datetime] = mapped_column(
+    tokens_valid_after: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime(1970, 1, 1, tzinfo=timezone.utc),
-        nullable=False,
+        nullable=True,
     )
 
 

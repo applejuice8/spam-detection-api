@@ -41,8 +41,8 @@ async def get_current_user(token: OAuth2Dep, db: DBDep) -> User:
             headers={'WWW-Authenticate': 'Bearer'}
         )
 
-    # Log out everywhere
-    if payload['iat'] <= int(as_utc(user.tokens_valid_after).timestamp()):
+    # No cutoff means the user has never logged out everywhere.
+    if user.tokens_valid_after is not None and payload['iat'] <= int(as_utc(user.tokens_valid_after).timestamp()):
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             'Token revoked',
