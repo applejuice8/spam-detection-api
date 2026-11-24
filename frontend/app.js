@@ -7,6 +7,11 @@
 // Shortcut for document.getElementById
 const $ = id => document.getElementById(id);
 
+// Use the local API for local frontend servers and the deployed API on hosted pages.
+if (!['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+  $('base').value = 'https://spam-detection-api-hpf8.onrender.com';
+}
+
 // Login token kept in memory only, so a page refresh logs you out
 const state = {
   accessToken: null,   // JWT from /auth/login, used for /auth/* routes
