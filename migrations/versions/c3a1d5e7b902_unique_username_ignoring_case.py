@@ -30,7 +30,6 @@ def upgrade() -> None:
         type_=postgresql.CITEXT(),
         existing_nullable=False,
     )
-    op.drop_index('ix_user_username_lower', table_name='user')
 
 
 def downgrade() -> None:

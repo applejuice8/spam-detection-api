@@ -87,6 +87,8 @@ docker compose up --build
 | Prometheus | http://localhost:9090 (localhost only) |
 | Grafana | http://localhost:3000 (localhost only) |
 
+For a step-by-step Render Free deployment, see [DEPLOY.md](DEPLOY.md).
+
 The image build trains the model, so it needs internet access to download the dataset and fails if the F1 quality gate fails. A `migrate` service applies database migrations once before the API starts.
 
 Metrics are served on port 9100 inside the compose network and are not published. They are not available on the API port.
