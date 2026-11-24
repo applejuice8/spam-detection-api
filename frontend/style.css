@@ -247,7 +247,6 @@ button:disabled {
   margin-top: 14px;
   padding: 16px;
   border: 1px solid #c4dfc6;
-  border-left: 4px solid var(--ham);
   border-radius: var(--radius);
   background: var(--ham-soft);
 }
