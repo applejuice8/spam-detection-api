@@ -18,7 +18,11 @@ class Settings(BaseSettings):
     metrics_port: int = 9100
     spam_threshold: float = Field(default=0.5, gt=0, lt=1)
     redis_url: str = 'redis://localhost:6379/0'
-    allowed_origins: list[str] = ['http://localhost:3000', 'http://127.0.0.1:5500']
+    allowed_origins: list[str] = [
+        'http://localhost:3000',
+        'http://127.0.0.1:5500',
+        'https://spam-detection-api-frontend.onrender.com',
+    ]
 
     @field_validator('jwt_secret')
     @classmethod
