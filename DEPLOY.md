@@ -2,6 +2,10 @@
 
 This guide deploys the API as a Render Free Web Service and the demo page as a separate Render Static Site. PostgreSQL is hosted on Neon Free because Render's free PostgreSQL expires after 30 days. Redis is optional; Upstash Free is included here for caching and rate limits.
 
+## Your API URL
+
+The backend URL is `https://spam-detection-api-hpf8.onrender.com` and the frontend URL is `https://spam-detection-api-frontend.onrender.com`. The backend's `/health` endpoint returns `{"status":"ok"}` and `/ready` returns `{"status":"ready"}` (checked 2026-11-24). The frontend is preconfigured to use this API URL.
+
 Free plan limits change. The limits below were checked on 2026-11-24 against the providers' documentation. Render Free web services use 512 MB RAM and 0.1 CPU, sleep after 15 minutes without traffic, and can take about a minute to wake. Render Static Sites are free. Render Free PostgreSQL expires after 30 days, so don't use it for the app's persistent data. See [Render's Free plan](https://render.com/docs/free) and [compute plans](https://render.com/docs/compute-plans).
 
 ## 1. Create the database
@@ -28,12 +32,12 @@ The command reads the other required settings (`JWT_SECRET`, `ACCESS_TOKEN_EXPIR
 
 ## 4. Deploy the frontend as a Static Site
 
-Create a Render Static Site from this repository and the branch you plan to deploy (usually `main` after merging):
+Create a Render Static Site from this repository and select the `deploy/render-free` branch:
 
 1. Set **Root Directory** to `frontend`.
 2. Leave **Build Command** blank.
 3. Set **Publish Directory** to `.`.
-4. Deploy, then copy the site's HTTPS origin, such as `https://spam-demo.onrender.com`.
+4. Deploy. The configured frontend URL is `https://spam-detection-api-frontend.onrender.com`.
 
 The frontend is plain HTML, CSS, and JavaScript. It doesn't need the frontend Dockerfile or a build step. See [Render's Static Site setup](https://render.com/docs/static-sites).
 
@@ -43,8 +47,8 @@ Create a separate Render Web Service from the same repository and branch:
 
 1. Choose **Docker** as the runtime and **Free** as the instance type.
 2. Leave **Root Directory** blank so the build context is the repository root. Use `Dockerfile` as the Dockerfile path.
-3. Set the service's HTTP port to `8000` by adding `PORT=8000` to its environment. This matches the port hard-coded in the Dockerfile's Uvicorn command. Set the health check path to `/health`.
-4. Add the environment variables below in Render. Replace the example frontend origin with the URL from step 4.
+3. The Dockerfile's Uvicorn command listens on port `8000`. Render usually detects this; if you configure the HTTP port explicitly or need to set `PORT`, use `8000`. Set the health check path to `/health`.
+4. Add the environment variables below in the Render backend service settings. Set `ALLOWED_ORIGINS` to the frontend Static Site's origin, not the API URL.
 
    | Variable | Value |
    | --- | --- |
@@ -52,7 +56,7 @@ Create a separate Render Web Service from the same repository and branch:
    | `JWT_SECRET` | Generate with `openssl rand -hex 32` |
    | `ACCESS_TOKEN_EXPIRES_MINUTES` | `30` |
    | `REFRESH_TOKEN_EXPIRE_DAYS` | `14` |
-   | `ALLOWED_ORIGINS` | JSON array, e.g. `["https://spam-demo.onrender.com"]` |
+   | `ALLOWED_ORIGINS` | `["https://spam-detection-api-frontend.onrender.com"]` |
    | `REDIS_URL` | Upstash TLS URL beginning with `rediss://` (optional) |
    | `SPAM_THRESHOLD` | `0.5` (optional) |
    | `SQL_ECHO` | `false` (optional) |
@@ -60,18 +64,31 @@ Create a separate Render Web Service from the same repository and branch:
    `METRICS_HOST` and `METRICS_PORT` can stay at their defaults. Metrics use a separate port and are not exposed as part of this deployment. `GRAFANA_ADMIN_PASSWORD` is only needed for the full Docker Compose setup.
 
 5. Deploy the service. The Docker image trains the model during its build and downloads the pinned public dataset from Kaggle. The first build may take several minutes. Render Free's 512 MB runtime memory and 0.1 CPU are limited; if the image build or app is killed for resource use, this configuration may not fit the Free plan without reducing the build/runtime requirements.
-6. Copy the API's HTTPS URL, such as `https://spam-api.onrender.com`.
+6. The API's HTTPS URL is `https://spam-detection-api-hpf8.onrender.com`.
 
 Render recommends that web services bind to the `PORT` environment variable on `0.0.0.0`. This app's current Docker command uses port `8000`, so keep the Render port at `8000` unless you change the Docker command too. See [Render's port binding documentation](https://render.com/docs/web-services#port-binding).
 
 ## 6. Connect and check the services
 
 1. Open the Static Site URL.
-2. Enter the API URL from step 5 in the page's **API URL** field. The field defaults to `127.0.0.1` for local development.
+2. Confirm the page's **API URL** field is `https://spam-detection-api-hpf8.onrender.com`.
 3. Confirm the health message changes to `Connected (status: ok)`.
 4. Sign up, log in, create an API key, and try a prediction.
 
 If the browser reports a CORS error, check that `ALLOWED_ORIGINS` is a JSON array containing the Static Site's exact HTTPS origin, with no path or trailing slash. Save the API environment change and redeploy.
+
+## Values to change for your deployment
+
+Set these on the **backend Web Service** in Render:
+
+- `DATABASE_URI`: your Neon PostgreSQL connection string.
+- `JWT_SECRET`: a new secret generated with `openssl rand -hex 32`.
+- `ALLOWED_ORIGINS`: `["https://spam-detection-api-frontend.onrender.com"]` on the Render backend. Use the frontend URL here, not the backend URL.
+- `PORT`: optional if Render detects the current listener. If you set it explicitly, use `8000` to match the Docker command. Your current service is responding, so don't change it unless Render reports a port binding problem.
+- `REDIS_URL`: your Upstash `rediss://` URL if you want caching and rate limiting. Otherwise, Redis is optional.
+- `ACCESS_TOKEN_EXPIRES_MINUTES` and `REFRESH_TOKEN_EXPIRE_DAYS`: set to your preferred lifetimes; `30` and `14` are the documented defaults.
+
+The frontend has no Render environment variable for the API URL. Its `frontend/index.html` default is already set to `https://spam-detection-api-hpf8.onrender.com`.
 
 ## What to expect on Free
 
