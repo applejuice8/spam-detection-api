@@ -1,7 +1,9 @@
 import asyncio
+import hmac
 from contextlib import asynccontextmanager, suppress
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.ml_model import SpamClassifier
 from app.auth.router import router as auth_router
 from app.auth.purge import purge_loop
@@ -54,6 +56,21 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+@app.middleware('http')
+async def protect_metrics_endpoint(request: Request, call_next):
+    if request.url.path == '/metrics':
+        token = get_settings().metrics_bearer_token
+        if token and not hmac.compare_digest(
+            request.headers.get('authorization', ''), f'Bearer {token}'
+        ):
+            return JSONResponse(
+                {'detail': 'Not authenticated'},
+                status_code=401,
+                headers={'WWW-Authenticate': 'Bearer'},
+            )
+    return await call_next(request)
 
 
 # CORS

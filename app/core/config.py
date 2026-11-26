@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     sql_echo: bool = False
     metrics_host: str = '127.0.0.1'
     metrics_port: int = 9100
+    metrics_bearer_token: str = ''
     spam_threshold: float = Field(default=0.5, gt=0, lt=1)
     redis_url: str = 'redis://localhost:6379/0'
     allowed_origins: list[str] = [
