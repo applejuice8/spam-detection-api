@@ -3,7 +3,7 @@
 #   Frontend:   http://localhost:8080
 #   Prometheus: http://localhost:9090  (localhost only)
 #   Grafana:    http://localhost:3000  (localhost only)
-#   Metrics:    served by the API on port 9100 inside the compose network only, never published.
+#   Metrics:    api:9100 inside the compose network; /metrics is also available on API port 8000.
 # Set DATABASE_URI in your local .env to a development database, never the production database.
 
 services:

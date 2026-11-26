@@ -65,8 +65,11 @@ app.add_middleware(
 )
 
 
-# Prometheus served by metrics server started in lifespan, not by this app
-Instrumentator(should_group_status_codes=True, should_instrument_requests_inprogress=True).instrument(app)
+# Keep the internal metrics listener for the Compose Prometheus service; expose the same registry on
+# the API port so hosted scrapers can reach it through the single public Render HTTP port.
+Instrumentator(should_group_status_codes=True, should_instrument_requests_inprogress=True).instrument(app).expose(
+    app, endpoint='/metrics', include_in_schema=False
+)
 
 
 # Routers
