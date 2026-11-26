@@ -9,6 +9,7 @@ os.environ.update({
     'ACCESS_TOKEN_EXPIRES_MINUTES': '15',
     'REFRESH_TOKEN_EXPIRE_DAYS': '7',
     'METRICS_PORT': '0',        # Any free port, so tests never clash with a running dev server
+    'METRICS_BEARER_TOKEN': 'test-metrics-token',
 })
 
 import json

@@ -41,7 +41,9 @@ def test_metrics_are_served_on_their_own_port(running_app):
 def test_metrics_are_served_on_the_api_port(running_app):
     running_app.get('/health')
 
-    response = running_app.get('/metrics')
+    assert running_app.get('/metrics').status_code == 401
+
+    response = running_app.get('/metrics', headers={'Authorization': 'Bearer test-metrics-token'})
     assert response.status_code == 200
     assert 'http_requests_total' in response.text
     assert 'spam_model_f1' in response.text
