@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     redis_url: str = 'redis://localhost:6379/0'
     allowed_origins: list[str] = [
         'http://localhost:3000',
+        'http://localhost:5500',
         'http://127.0.0.1:5500',
-        'https://spam-detection-api-frontend.onrender.com',
     ]
 
     @field_validator('jwt_secret')

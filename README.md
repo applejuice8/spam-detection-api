@@ -19,6 +19,8 @@ uv run uvicorn app.main:app --reload
 
 Docs are at http://localhost:8000/docs. Redis is optional locally. Without it, predictions are not cached and rate limits are not applied.
 
+`.env` is local-only and ignored by Git. Use a development database for local work, separate from the database configured in Render. The `.env.example` CORS origins are for local browser development; production origins belong in the Render API service's `ALLOWED_ORIGINS` setting.
+
 ## Use the API
 
 ```bash
@@ -68,15 +70,15 @@ Set in `.env` (see `.env.example`) or the environment.
 | `REFRESH_TOKEN_EXPIRE_DAYS` | required | Refresh token lifetime |
 | `SPAM_THRESHOLD` | `0.5` | Probability at or above which a message is labelled spam |
 | `REDIS_URL` | `redis://localhost:6379/0` | Cache and rate limit counters |
-| `ALLOWED_ORIGINS` | two localhost origins | JSON list of browser origins allowed by CORS |
-| `METRICS_HOST` / `METRICS_PORT` | `127.0.0.1` / `9100` | Where Prometheus metrics are served |
+| `ALLOWED_ORIGINS` | local browser origins | JSON list of browser origins allowed by CORS; set the deployed frontend origin in Render |
+| `METRICS_HOST` / `METRICS_PORT` | `127.0.0.1` / `9100` | Internal metrics listener used by the Compose Prometheus service |
 | `SQL_ECHO` | `false` | Log every SQL statement with parameters. Local debugging only. |
 | `GRAFANA_ADMIN_PASSWORD` | required for Docker | Used by docker compose only |
 
 ## Docker
 
 ```bash
-# .env needs GRAFANA_ADMIN_PASSWORD as well
+# .env needs GRAFANA_ADMIN_PASSWORD as well. Point DATABASE_URI at a development database, not production.
 docker compose up --build
 ```
 
@@ -89,9 +91,9 @@ docker compose up --build
 
 For a step-by-step Render Free deployment, see [DEPLOY.md](DEPLOY.md).
 
-The image build trains the model, so it needs internet access to download the dataset and fails if the F1 quality gate fails. A `migrate` service applies database migrations once before the API starts.
+The image build trains the model, so it needs internet access to download the dataset and fails if the F1 quality gate fails. A `migrate` service applies database migrations once before the API starts. Because the migration and API run in separate containers, use a shared development PostgreSQL database for Docker Compose rather than the SQLite example in `.env.example`.
 
-Metrics are served on port 9100 inside the compose network and are not published. They are not available on the API port.
+Prometheus metrics are available to Compose at `api:9100/metrics`. The API also serves `/metrics` on port 8000 for hosted collectors such as Grafana Cloud; protect or restrict access if your metrics should not be public.
 
 ## The model
 

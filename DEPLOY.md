@@ -32,7 +32,7 @@ The command reads the other required settings (`JWT_SECRET`, `ACCESS_TOKEN_EXPIR
 
 ## 4. Deploy the frontend as a Static Site
 
-Create a Render Static Site from this repository and select the `deploy/render-free` branch:
+Create a Render Static Site from this repository and select the production branch used by your Render services (currently `main`):
 
 1. Set **Root Directory** to `frontend`.
 2. Leave **Build Command** blank.
@@ -71,7 +71,7 @@ Render recommends that web services bind to the `PORT` environment variable on `
 ## 6. Connect and check the services
 
 1. Open the Static Site URL.
-2. Confirm the page's **API URL** field is `https://spam-detection-api-hpf8.onrender.com`.
+2. Confirm the page's **API URL** field is `https://spam-detection-api-hpf8.onrender.com`. The frontend selects this API automatically when hosted; on localhost it defaults to `http://127.0.0.1:8000`.
 3. Confirm the health message changes to `Connected (status: ok)`.
 4. Sign up, log in, create an API key, and try a prediction.
 
@@ -88,7 +88,7 @@ Set these on the **backend Web Service** in Render:
 - `REDIS_URL`: your Upstash `rediss://` URL if you want caching and rate limiting. Otherwise, Redis is optional.
 - `ACCESS_TOKEN_EXPIRES_MINUTES` and `REFRESH_TOKEN_EXPIRE_DAYS`: set to your preferred lifetimes; `30` and `14` are the documented defaults.
 
-The frontend has no Render environment variable for the API URL. Its `frontend/index.html` default is already set to `https://spam-detection-api-hpf8.onrender.com`.
+The frontend has no Render environment variable for the API URL. `frontend/app.js` selects the deployed API for hosted pages and the local API for localhost pages.
 
 ## What to expect on Free
 

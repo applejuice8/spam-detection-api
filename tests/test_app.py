@@ -38,8 +38,13 @@ def test_metrics_are_served_on_their_own_port(running_app):
     assert 'spam_model_f1' in body
 
 
-def test_metrics_are_not_served_on_the_api_port(running_app):
-    assert running_app.get('/metrics').status_code == 404
+def test_metrics_are_served_on_the_api_port(running_app):
+    running_app.get('/health')
+
+    response = running_app.get('/metrics')
+    assert response.status_code == 200
+    assert 'http_requests_total' in response.text
+    assert 'spam_model_f1' in response.text
 
 
 def test_shutdown_stops_the_metrics_server(fake_model_dir, monkeypatch):
