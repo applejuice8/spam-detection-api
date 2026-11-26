@@ -20,6 +20,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
+    # Intentional destructive reset: clear all application data so existing
+    # refresh-token rows do not need synthetic family IDs. CASCADE also clears
+    # dependent API keys and RESTART IDENTITY resets the application sequences.
+    op.execute(sa.text('TRUNCATE TABLE "user", refresh_token, api_key RESTART IDENTITY CASCADE'))
     op.add_column('refresh_token', sa.Column('family_id', sa.String(length=36), nullable=False))
     op.create_index(op.f('ix_refresh_token_family_id'), 'refresh_token', ['family_id'], unique=False)
     op.add_column(
