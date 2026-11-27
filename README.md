@@ -18,16 +18,17 @@ A FastAPI service that classifies short text messages as **spam** or **ham** wit
 
 ```mermaid
 flowchart LR
-    Browser[Browser] --> Static[Static frontend<br/>Render]
-    Static -->|HTTPS JSON, CORS| API[FastAPI service<br/>Render]
-    API --> DB[(PostgreSQL<br/>Neon)]
-    API -. optional .-> Redis[(Redis<br/>Upstash)]
-    API --> Model[scikit-learn model]
-    Grafana[Grafana Cloud] -->|HTTPS /metrics<br/>Bearer token| API
+    browser[Browser] --> frontend[Render static frontend]
+    frontend -->|HTTPS JSON| api[FastAPI on Render]
+    api -->|queries| postgres[(PostgreSQL on Neon)]
+    api -->|optional cache and rate limits| redis[(Redis on Upstash)]
+    api --> model[scikit-learn model in API]
+    grafana[Grafana Cloud] -->|HTTPS bearer-authenticated scrape| metrics[API metrics endpoint]
+    metrics --> api
 
-    subgraph Local Docker Compose
-        Prometheus[Prometheus] -->|api:9100/metrics| API
-        LocalGrafana[Grafana] --> Prometheus
+    subgraph local_compose[Local Docker Compose]
+        local_api[API] -->|Prometheus metrics| prometheus[Prometheus]
+        local_grafana[Grafana] --> prometheus
     end
 ```
 
