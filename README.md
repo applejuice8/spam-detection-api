@@ -18,17 +18,44 @@ A FastAPI service that classifies short text messages as **spam** or **ham** wit
 
 ```mermaid
 flowchart LR
-    Browser[Browser] --> Static[Static frontend<br/>Render]
-    Static -->|HTTPS JSON, CORS| API[FastAPI service<br/>Render]
-    API --> DB[(PostgreSQL<br/>Neon)]
-    API -. optional .-> Redis[(Redis<br/>Upstash)]
-    API --> Model[scikit-learn model]
-    Grafana[Grafana Cloud] -->|HTTPS /metrics<br/>Bearer token| API
-
-    subgraph Local Docker Compose
-        Prometheus[Prometheus] -->|api:9100/metrics| API
-        LocalGrafana[Grafana] --> Prometheus
+    subgraph client[Client]
+        user((User))
+        frontend[Demo frontend on Render]
+        user --> frontend
     end
+
+    subgraph render[Render application]
+        api[FastAPI backend]
+        model[Spam classifier]
+        api -->|runs inference| model
+    end
+
+    subgraph managed[Managed services]
+        postgres[(PostgreSQL on Neon)]
+        redis[(Optional Redis on Upstash)]
+    end
+
+    frontend -->|HTTPS JSON requests| api
+    api -->|accounts, sessions, API keys| postgres
+    api -->|cache and rate limits| redis
+    grafana[Grafana Cloud] -->|HTTPS scrape with bearer token| api
+
+    subgraph local[Local Docker Compose]
+        local_api[Local API]
+        prometheus[Prometheus]
+        local_grafana[Grafana]
+        local_api -->|metrics on port 9100| prometheus
+        prometheus --> local_grafana
+    end
+
+    classDef clientStyle fill:#e8f1ff,stroke:#4472c4,stroke-width:2px,color:#17365d;
+    classDef appStyle fill:#e8f6ef,stroke:#29936b,stroke-width:2px,color:#17452f;
+    classDef dataStyle fill:#fff4df,stroke:#c58a20,stroke-width:2px,color:#543b08;
+    classDef observeStyle fill:#f1eaff,stroke:#8760bd,stroke-width:2px,color:#38205d;
+    class user,frontend clientStyle;
+    class api,model,local_api appStyle;
+    class postgres,redis dataStyle;
+    class grafana,prometheus,local_grafana observeStyle;
 ```
 
 The API loads the trained model once at startup. A prediction request is checked against the IP and API-key rate limits, then Redis is checked for a cached result. On a cache miss, the model runs and the result is cached for one hour. User accounts, refresh-token sessions, and API keys are stored in PostgreSQL.
